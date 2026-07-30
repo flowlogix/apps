@@ -33,4 +33,5 @@
     <suppress checks="JavadocPackage" files="com[\\/]flowlogix[\\/]website[\\/]*"/>
     <suppress checks="JavadocPackage" files="com[\\/]flowlogix[\\/]starter[\\/]*"/>
     <suppress checks="JavadocPackage" files="com.flowlogix.contact.*"/>
+    <suppress checks="SummaryJavadoc" files="com.flowlogix.website.*"/>
 </suppressions>

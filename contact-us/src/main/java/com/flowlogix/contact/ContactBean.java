@@ -38,7 +38,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.util.List;
 
 /**
- * Backing bean for the contact form
+ * Backing bean for the contact form.
  */
 @Slf4j
 @Named

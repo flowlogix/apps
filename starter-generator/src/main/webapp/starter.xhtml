@@ -55,7 +55,7 @@
         </p:dialog>
 
         <h:form>
-            <p:focus/>
+            <p:focus rendered="#{not facesContext.postback}"/>
             <div class="text-center mb-2">
                 <p:commandButton value="Download" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
                                  icon="pi pi-arrow-down" styleClass="download-button">
@@ -116,26 +116,40 @@
             <div class="form-section">
                 <div class="formgrid grid">
                     <div class="field-checkbox col-12 md:col-6">
-                        <p:selectBooleanCheckbox id="useShiro" value="#{archetype.useShiro}" itemLabel="Enable Apache Shiro"/>
+                        <p:selectBooleanCheckbox id="useShiro" value="#{archetype.useShiro}" itemLabel="Enable Apache Shiro">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
-                        <p:selectBooleanCheckbox id="useOmniFaces" value="#{archetype.useOmniFaces}" itemLabel="Enable OmniFaces"/>
+                        <p:selectBooleanCheckbox id="useOmniFaces" value="#{archetype.useOmniFaces}" itemLabel="Enable OmniFaces">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
-                        <p:selectBooleanCheckbox id="usePrimeFaces" value="#{archetype.usePrimeFaces}" itemLabel="Enable PrimeFaces"/>
+                        <p:selectBooleanCheckbox id="usePrimeFaces" value="#{archetype.usePrimeFaces}" itemLabel="Enable PrimeFaces">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
-                        <p:selectBooleanCheckbox id="useLazyModel" value="#{archetype.useLazyModel}" itemLabel="Use JPA Lazy DataModel"/>
+                        <p:selectBooleanCheckbox id="useLazyModel" value="#{archetype.useLazyModel}" itemLabel="Use JPA Lazy DataModel">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
-                        <p:selectBooleanCheckbox id="useMavenCache" value="#{archetype.useMavenCache}" itemLabel="Use Maven Build Cache"/>
+                        <p:selectBooleanCheckbox id="useMavenCache" value="#{archetype.useMavenCache}" itemLabel="Use Maven Build Cache">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
-                        <p:selectBooleanCheckbox id="useCodeCoverage" value="#{archetype.useCodeCoverage}" itemLabel="Enable JaCoCo Code Coverage"/>
+                        <p:selectBooleanCheckbox id="useCodeCoverage" value="#{archetype.useCodeCoverage}" itemLabel="Enable JaCoCo Code Coverage">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useArquillianGraphene" value="#{archetype.useArquillianGraphene}"
-                                                 itemLabel="Enable Selenium / Drone / Graphene UI Tests"/>
+                                                 itemLabel="Enable Selenium / Drone / Graphene UI Tests">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
                     </div>
                 </div>
             </div>

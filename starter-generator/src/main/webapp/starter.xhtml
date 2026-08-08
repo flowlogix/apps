@@ -54,8 +54,8 @@
             <i class="pi pi-spinner pi-spin" style="font-size:3rem"/>
         </p:dialog>
 
+        <p:focus/>
         <h:form>
-            <p:focus rendered="#{not facesContext.postback}"/>
             <div class="text-center mb-2">
                 <p:commandButton value="Download" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
                                  icon="pi pi-arrow-down" styleClass="download-button">

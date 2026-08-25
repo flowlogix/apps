@@ -41,10 +41,10 @@ import java.util.stream.Collectors;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 
+@Slf4j
 @Named("archetype")
 @SessionScoped
 @Getter @Setter
-@Slf4j
 public class ArchetypeCustomizer implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
@@ -68,6 +68,7 @@ public class ArchetypeCustomizer implements Serializable {
     private String archetypeVersion;
 
     private boolean useShiro = true;
+    private boolean useAgenticAI = true;
     private boolean useOmniFaces = true;
     private boolean usePrimeFaces = true;
     private boolean useLazyModel = true;
@@ -105,6 +106,7 @@ public class ArchetypeCustomizer implements Serializable {
                 new Parameter("version", version),
                 new Parameter("archetypeVersion", archetypeVersion),
                 new Parameter("useShiro", Boolean.toString(useShiro)),
+                new Parameter("useAgenticAI", Boolean.toString(useAgenticAI)),
                 new Parameter("useOmniFaces", Boolean.toString(useOmniFaces)),
                 new Parameter("usePrimeFaces", Boolean.toString(usePrimeFaces)),
                 new Parameter("useLazyModel", Boolean.toString(useLazyModel)),

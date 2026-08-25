@@ -31,8 +31,8 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 
-@Path("/")
 @Slf4j
+@Path("/")
 public class DownloadResource {
     @Inject
     ArchetypeGenerator generator;
@@ -52,6 +52,7 @@ public class DownloadResource {
                                  @MatrixParam("version") String version,
                                  @MatrixParam("archetypeVersion") String archetypeVersion,
                                  @MatrixParam("useShiro") @DefaultValue("false") boolean useShiro,
+                                 @MatrixParam("useAgenticAI") @DefaultValue("false") boolean useAgenticAI,
                                  @MatrixParam("useOmniFaces") @DefaultValue("false") boolean useOmniFaces,
                                  @MatrixParam("usePrimeFaces") @DefaultValue("false") boolean usePrimeFaces,
                                  @MatrixParam("useLazyModel") @DefaultValue("false") boolean useLazyModel,
@@ -68,6 +69,7 @@ public class DownloadResource {
                 new Parameter("version", version),
                 new Parameter("archetypeVersion", archetypeVersion),
                 new Parameter("useShiro", Boolean.toString(useShiro)),
+                new Parameter("useAgenticAI", Boolean.toString(useAgenticAI)),
                 new Parameter("useOmniFaces", Boolean.toString(useOmniFaces)),
                 new Parameter("usePrimeFaces", Boolean.toString(usePrimeFaces)),
                 new Parameter("useLazyModel", Boolean.toString(useLazyModel)),

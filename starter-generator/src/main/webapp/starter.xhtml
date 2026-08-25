@@ -121,6 +121,11 @@
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
+                        <p:selectBooleanCheckbox id="useAgenticAI" value="#{archetype.useAgenticAI}" itemLabel="Enable Agentic AI">
+                            <p:ajax update="@form" process="@form"/>
+                        </p:selectBooleanCheckbox>
+                    </div>
+                    <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useOmniFaces" value="#{archetype.useOmniFaces}" itemLabel="Enable OmniFaces">
                             <p:ajax update="@form" process="@form"/>
                         </p:selectBooleanCheckbox>

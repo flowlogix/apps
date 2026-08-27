@@ -14,7 +14,7 @@
     </parent>
 
     <properties>
-        <shiro.version>3.0.0</shiro.version>
+        <shiro.version>3.0.1</shiro.version>
     </properties>
 
     <dependencies>

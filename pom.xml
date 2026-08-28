@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.flowlogix</groupId>
         <artifactId>payara-pom</artifactId>
-        <version>137</version>
+        <version>138</version>
     </parent>
 
     <properties>

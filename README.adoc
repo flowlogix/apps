@@ -1,3 +1,27 @@
-= Hope Applications
+= FlowLogix Web Applications
 
 image:https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fjenkins.flowlogix.com%2Fjob%2Fflowlogix-org-repo%2Fjob%2Fapps%2Fjob%2Fmain%2F&style=plastic[Jenkins]
+
+Multi-module Jakarta EE / Maven project containing the FlowLogix website applications.
+Built using the FlowLogix Jakarta EE Components and Apache Shiro.
+
+== Modules
+
+* `emailmanager` — Email Manager web application (Junk Mail Eraser, Draft Mail Sender)
+* `contact-us` — Contact Us form web application
+* `starter-generator` — Starter project generator web application
+* `apps-ear` — EAR packaging that bundles the web applications in a single deployment
+
+== Building
+
+[source,bash]
+----
+./mvnw package
+----
+
+== Running in development mode with live reload
+
+[source,bash]
+----
+./mvnw server:dev
+----

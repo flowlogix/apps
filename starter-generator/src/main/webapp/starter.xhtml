@@ -46,7 +46,7 @@
         <h1><strong>Simple, Testable and feature-rich Starter Generator for Maven and Jakarta EE</strong></h1>
         <p style="text-align: center; color: #666; margin-bottom: 0.5rem;">
             All fields below are optional. If you don't provide any values, defaults will be used.
-            Click on the download button for your personal Jakarta EE comprehensive quick start app.
+            Click on the Generate button for your personal Jakarta EE comprehensive quick start app.
         </p>
 
         <p:dialog id="statusDialog" modal="true" widgetVar="statusDialog" header="Generating Project"
@@ -57,7 +57,7 @@
         <p:focus/>
         <h:form>
             <div class="text-center mb-2">
-                <p:commandButton value="Download" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
+                <p:commandButton value="Generate Project" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
                                  icon="pi pi-arrow-down" styleClass="download-button">
                     <p:fileDownload value="#{archetype.download}"/>
                 </p:commandButton>
@@ -160,7 +160,7 @@
             </div>
 
             <div class="text-center mt-3 mb-2">
-                <p:commandButton value="Download" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
+                <p:commandButton value="Generate Project" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
                                  validateClient="true" icon="pi pi-arrow-down" styleClass="download-button">
                     <p:fileDownload value="#{archetype.download}"/>
                 </p:commandButton>

@@ -8,8 +8,8 @@ Built using the FlowLogix Jakarta EE Components and Apache Shiro.
 == Modules
 
 * `emailmanager` — Email Manager web application (Junk Mail Eraser, Draft Mail Sender)
-* `contact-us` — Contact Us form web application
-* `starter-generator` — Starter project generator web application
+* `contact-us` — Contact Us form web application - link:https://flowlogix.com/contact[Contact FlowLogix]
+* `starter-generator` — Starter project generator web application - link:https://start.flowlogix.com/contact[Jakarta EE Starter]
 * `apps-ear` — EAR packaging that bundles the web applications in a single deployment
 
 == Building

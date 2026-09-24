@@ -5,6 +5,6 @@ on:
 
 jobs:
   call-automerge:
-    uses: flowlogix/base-pom/.github/workflows/dependabot-automerge.yml@v139
+    uses: flowlogix/base-pom/.github/workflows/dependabot-automerge.yml@v142
     secrets:
       github-token: ${{ secrets.GH_AUTOMERGE_TOKEN }}

@@ -25,6 +25,7 @@ import jakarta.ws.rs.core.MediaType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.omnifaces.util.Faces;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
@@ -96,7 +97,7 @@ public class ArchetypeCustomizer implements Serializable {
     }
 
     private Parameter[] getParameters(boolean forCurl) {
-        return new Parameter[] {
+        var parameters = new Parameter[] {
                 new Parameter(forCurl ? "group" : "groupId", group.toLowerCase()),
                 new Parameter(forCurl ? "artifact" : "artifactId", artifact.toLowerCase()),
                 new Parameter("projectName", projectName),
@@ -114,6 +115,18 @@ public class ArchetypeCustomizer implements Serializable {
                 new Parameter("useCodeCoverage", Boolean.toString(useCodeCoverage)),
                 new Parameter("useArquillianGraphene", Boolean.toString(useArquillianGraphene))
         };
+        return appendShiroVersion(parameters);
+    }
+
+    private Parameter[] appendShiroVersion(Parameter[] parameters) {
+        var result = parameters;
+        final String shiroVersionParameter = "shiroVersion";
+        String shiroVersion = System.getProperty(shiroVersionParameter).strip();
+        if (!StringUtils.isBlank(shiroVersion)) {
+            result = Arrays.copyOf(parameters, parameters.length + 1);
+            result[parameters.length] = new Parameter(shiroVersionParameter, shiroVersion);
+        }
+        return result;
     }
 
     private String processPackagingType() {

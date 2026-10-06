@@ -96,7 +96,7 @@ public class ArchetypeGenerator {
             var builder = new ProcessBuilder().command(options).directory(temporaryPath.toFile());
             String userHome = System.getProperty("user.home");
             Path java25VersionPath = Path.of(userHome).resolve("var")
-                    .resolve("java-25-version");
+                    .resolve(System.getProperty("com.flowlogix.starter.java-version-file", "java-25-version"));
             if (java25VersionPath.toFile().exists()) {
                 builder.environment().put("JAVA_HOME", "%s/.sdkman/candidates/java/%s"
                         .formatted(userHome, Files.readString(java25VersionPath).strip()));

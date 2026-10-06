@@ -93,8 +93,16 @@ public class ArchetypeGenerator {
             String projectDirectory = temporaryPath.toString();
             List<String> options = generateMavenCommandLine(inputParameters, projectDirectory);
             log.debug("Options: {}", options);
+            var builder = new ProcessBuilder().command(options).directory(temporaryPath.toFile());
+            String userHome = System.getProperty("user.home");
+            Path java25VersionPath = Path.of(userHome).resolve("var")
+                    .resolve("java-25-version");
+            if (java25VersionPath.toFile().exists()) {
+                builder.environment().put("JAVA_HOME", "%s/.sdkman/candidates/java/%s"
+                        .formatted(userHome, Files.readString(java25VersionPath).strip()));
+            }
             try {
-                Process mavenProcess = new ProcessBuilder().command(options).directory(temporaryPath.toFile()).start();
+                var mavenProcess = builder.start();
                 return new ReturnValue(temporaryPath, mavenProcess.waitFor(), readString(mavenProcess.getInputStream()));
             } catch (IOException e) {
                 log.debug("Failed to execute Maven process", e);

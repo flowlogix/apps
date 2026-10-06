@@ -121,7 +121,7 @@ public class ArchetypeCustomizer implements Serializable {
     private Parameter[] appendShiroVersion(Parameter[] parameters) {
         var result = parameters;
         final String shiroVersionParameter = "shiroVersion";
-        String shiroVersion = System.getProperty(shiroVersionParameter).strip();
+        String shiroVersion = System.getProperty(shiroVersionParameter, "").strip();
         if (!StringUtils.isBlank(shiroVersion)) {
             result = Arrays.copyOf(parameters, parameters.length + 1);
             result[parameters.length] = new Parameter(shiroVersionParameter, shiroVersion);

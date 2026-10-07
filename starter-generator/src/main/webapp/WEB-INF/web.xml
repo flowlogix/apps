@@ -33,4 +33,8 @@
         <param-name>com.flowlogix.add-unmapped-resources</param-name>
         <param-value>true</param-value>
     </context-param>
+    <context-param>
+        <param-name>com.flowlogix.set-facelet-buffer-size</param-name>
+        <param-value>64</param-value>
+    </context-param>
 </web-app>

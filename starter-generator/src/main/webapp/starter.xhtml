@@ -55,7 +55,7 @@
         </p:dialog>
 
         <p:focus/>
-        <h:form>
+        <h:form id="starterForm">
             <div class="text-center mb-2">
                 <p:commandButton value="Generate Project" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
                                  icon="pi pi-arrow-down" styleClass="download-button">
@@ -169,7 +169,7 @@
             <div class="form-section">
                 <h3 class="mt-0 text-600">Command Generation</h3>
                 <div class="mb-3">
-                    <p:commandButton value="Update commands" update="@form, curlCommand, mavenCommand"
+                    <p:commandButton id="updateCommands" value="Update commands" update="@form, curlCommand, mavenCommand"
                                      validateClient="true" icon="pi pi-refresh" styleClass="mr-2"/>
                 </div>
 
@@ -200,8 +200,8 @@
         </h:form>
 
         <div class="text-center mt-2">
-            <h:form>
-                <p:commandButton value="Reset Fields" ajax="false" process="@this"
+            <h:form id="resetForm">
+                <p:commandButton id="reset" value="Reset Fields" ajax="false" process="@this"
                                  actionListener="#{archetype.resetSession}" icon="pi pi-refresh" styleClass="mr-2">
                 </p:commandButton>
             </h:form>

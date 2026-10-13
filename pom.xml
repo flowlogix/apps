@@ -22,6 +22,7 @@
         <flowlogix.bom.version>51</flowlogix.bom.version>
         <flowlogix.version>11.7.1</flowlogix.version>
         <depchain.version>133</depchain.version>
+        <arquillian.graphene.version>3.0.1.Final</arquillian.graphene.version>
         <shiro.version>3.0.1</shiro.version>
         <jandex.skip>false</jandex.skip>
 
@@ -66,6 +67,13 @@
             <artifactId>integration-test</artifactId>
             <version>${depchain.version}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.arquillian.graphene</groupId>
+            <artifactId>graphene-webdriver</artifactId>
+            <version>${arquillian.graphene.version}</version>
+            <scope>test</scope>
+            <type>pom</type>
         </dependency>
 
         <dependency>

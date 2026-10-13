@@ -178,6 +178,29 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>com/flowlogix/starter/**</include>
+                        <include>com/flowlogix/website/**</include>
+                        <include>com/flowlogix/contact/**</include>
+                    </includes>
+                    <excludes>
+                        <exclude>com/flowlogix/**/*Test</exclude>
+                        <exclude>com/flowlogix/**/*Test$*</exclude>
+                        <exclude>com/flowlogix/**/*IT</exclude>
+                        <exclude>com/flowlogix/**/*IT$*</exclude>
+                        <!-- integration test support classes -->
+                        <exclude>com/flowlogix/starter/Deployments</exclude>
+                        <exclude>com/flowlogix/starter/StarterPage*</exclude>
+                        <exclude>**/*$Proxy$*WeldClientProxy</exclude>
+                        <exclude>**/*$Proxy$*WeldSubclass</exclude>
+                        <exclude>**/*$MockitoMock$*</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>io.smallrye</groupId>
                 <artifactId>jandex-maven-plugin</artifactId>
                 <version>3.6.0</version>

@@ -19,7 +19,7 @@
     <properties>
         <checkstyle.suppressionsLocation>${maven.multiModuleProjectDirectory}/src/checkstyle/suppressions.xml</checkstyle.suppressionsLocation>
 
-        <flowlogix.bom.version>51</flowlogix.bom.version>
+        <flowlogix.bom.version>52</flowlogix.bom.version>
         <flowlogix.version>11.7.1</flowlogix.version>
         <depchain.version>133</depchain.version>
         <arquillian.graphene.version>3.0.1.Final</arquillian.graphene.version>

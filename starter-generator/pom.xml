@@ -9,21 +9,13 @@
         <version>1.x-SNAPSHOT</version>
     </parent>
 
-    <artifactId>starter-generator</artifactId>
-    <name>Starter Generator</name>
-    <packaging>war</packaging>
+    <artifactId>starter-generator-parent</artifactId>
+    <name>Starter Generator Parent</name>
+    <packaging>pom</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.28.0</version>
-        </dependency>
-        <dependency>
-            <!-- Source of the allowlist of archetype property names, see DownloadResource -->
-            <groupId>com.flowlogix.archetypes</groupId>
-            <artifactId>starter</artifactId>
-            <version>154</version>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>common</module>
+        <module>web</module>
+        <module>cli</module>
+    </modules>
 </project>

@@ -16,6 +16,8 @@
 package com.flowlogix.starter.ui;
 
 import com.flowlogix.starter.ArchetypeGenerator;
+import com.flowlogix.starter.common.BaseType;
+import com.flowlogix.starter.common.DownloadRequest;
 import com.flowlogix.util.ShrinkWrapManipulator;
 import jakarta.enterprise.context.SessionScoped;
 import jakarta.inject.Inject;
@@ -35,12 +37,12 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
+import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.GROUP;
 
 @Slf4j
 @Named("archetype")
@@ -48,14 +50,10 @@ import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 @Getter @Setter
 public class ArchetypeCustomizer implements Serializable {
     @Serial
-    private static final long serialVersionUID = 3L;
+    private static final long serialVersionUID = 4L;
 
     @Inject
     ArchetypeGenerator generator;
-
-    private enum BaseType {
-        BASE, INFRA, PAYARA, GLASSFISH
-    }
 
     @Pattern(regexp = "^(?!.*(?:\\.{2}|/)).*$", message = "Invalid path: Path traversal attempt detected")
     private String artifact = "";
@@ -98,8 +96,8 @@ public class ArchetypeCustomizer implements Serializable {
 
     private Parameter[] getParameters(boolean forCurl) {
         var parameters = new Parameter[] {
-                new Parameter(forCurl ? "group" : "groupId", group.toLowerCase()),
-                new Parameter(forCurl ? "artifact" : "artifactId", artifact.toLowerCase()),
+                new Parameter(forCurl ? GROUP : "groupId", group.toLowerCase()),
+                new Parameter(forCurl ? ARTIFACT : "artifactId", artifact.toLowerCase()),
                 new Parameter("projectName", projectName),
                 new Parameter("package", packageName.toLowerCase()),
                 new Parameter("baseType", baseType.name().toLowerCase()),
@@ -140,18 +138,15 @@ public class ArchetypeCustomizer implements Serializable {
     }
 
     public String getCurlCommand() throws MalformedURLException {
-        String parameters = Arrays.stream(getParameters(true))
-                .filter(parameter -> parameter.value() != null && !parameter.value().isBlank())
-                .map(parameter -> "%s=%s".formatted(parameter.key(),
-                        URLEncoder.encode(parameter.value().trim(), StandardCharsets.UTF_8)
-                                .replace("+", "%20")))
-                .collect(Collectors.joining(";"));
+        var parameters = new LinkedHashMap<String, String>();
+        for (Parameter parameter : getParameters(true)) {
+            parameters.put(parameter.key(), parameter.value());
+        }
         var baseURL = Faces.isRequestSecure()
                 ? ShrinkWrapManipulator.toHttpsURL(URI.create(Faces.getRequestBaseURL()).toURL())
                 : Faces.getRequestBaseURL();
-        return "curl -X GET -H \"Accept: application/octet-stream\" -o \"%s.zip\" \"%sdownload/;%s\""
-                .formatted(artifact.isBlank() ? "starter" : artifact.toLowerCase().trim(),
-                        baseURL, parameters);
+        return DownloadRequest.curlCommand(DownloadRequest.url("%sdownload/".formatted(baseURL), parameters),
+                artifact.isBlank() ? "starter" : artifact.toLowerCase().trim());
     }
 
     public String getMavenCommand() {

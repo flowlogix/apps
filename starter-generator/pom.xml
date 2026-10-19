@@ -23,7 +23,7 @@
             <!-- Source of the allowlist of archetype property names, see DownloadResource -->
             <groupId>com.flowlogix.archetypes</groupId>
             <artifactId>starter</artifactId>
-            <version>154</version>
+            <version>156</version>
         </dependency>
     </dependencies>
 </project>

@@ -18,6 +18,7 @@ package com.flowlogix.starter.api;
 import com.flowlogix.starter.ArchetypeGenerator;
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
+import com.flowlogix.starter.common.ArtifactId;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,10 @@ import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import static com.flowlogix.starter.common.StarterParameters.ARCHETYPE_VERSION;
+import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.GROUP;
+import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
 @Slf4j
 @Path("/")
@@ -59,10 +64,11 @@ public class DownloadResource {
 
     @GET
     @Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN})
-    public Response downloadFile(@MatrixParam("artifact") @DefaultValue("starter")
-                                 @Pattern(regexp = "^[a-zA-Z0-9_-]+$",
+    public Response downloadFile(@MatrixParam(ARTIFACT) @DefaultValue("starter")
+                                 @Pattern(regexp = ArtifactId.PATTERN,
                                           message = "Artifact ID can only contain letters, numbers, underscores, and hyphens")
-                                 @Size(min = 1, max = 100, message = "Artifact ID must be between 1 and 100 characters")
+                                 @Size(min = 1, max = ArtifactId.MAX_LENGTH,
+                                       message = "Artifact ID must be between 1 and " + ArtifactId.MAX_LENGTH + " characters")
                                  String artifactId) {
         ReturnValue result = generator.generateArchetype(parameters(artifactId));
 
@@ -85,16 +91,16 @@ public class DownloadResource {
                 .filter(entry -> ALLOWED_PARAMETERS.containsKey(entry.getKey()))
                 .map(entry -> new Parameter(ALLOWED_PARAMETERS.get(entry.getKey()),
                         // repeated matrix parameters must not bypass validation
-                        "artifact".equals(entry.getKey()) ? artifactId : entry.getValue().getLast()))
+                        ARTIFACT.equals(entry.getKey()) ? artifactId : entry.getValue().getLast()))
                 .toArray(Parameter[]::new);
     }
 
     private static Map<String, String> allowedParameters() {
         return Stream.concat(archetypePropertyNames().stream().map(name -> Map.entry(name, name)), Stream.of(
-                        Map.entry("group", "groupId"),
-                        Map.entry("artifact", "artifactId"),
-                        Map.entry("package", "package"),
-                        Map.entry("archetypeVersion", "archetypeVersion")))
+                        Map.entry(GROUP, "groupId"),
+                        Map.entry(ARTIFACT, "artifactId"),
+                        Map.entry(PACKAGE, "package"),
+                        Map.entry(ARCHETYPE_VERSION, "archetypeVersion")))
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (first, var) -> first));
     }
 

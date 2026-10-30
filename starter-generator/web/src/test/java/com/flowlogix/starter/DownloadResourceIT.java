@@ -48,8 +48,9 @@ class DownloadResourceIT {
     @Test
     void download() throws IOException, InterruptedException {
         // artifactId and outputDirectory are not on the allowlist and have to be ignored,
-        // so is the repeated artifact, which would otherwise bypass validation
-        var response = get("artifact=my-app;group=com.acme;projectName=My%20App;version=2.0;packagingType=war"
+        // so is the repeated artifact, which would otherwise bypass validation;
+        // packagingType is left out so that the generator's default (war, as on the web page) is exercised
+        var response = get("artifact=my-app;group=com.acme;projectName=My%20App;version=2.0"
                 + ";useShiro=false;artifactId=hacked;outputDirectory=hacked;artifact=..%2Fhacked");
         assertThat(response.statusCode()).withFailMessage(() -> new String(response.body(), StandardCharsets.UTF_8))
                 .isEqualTo(OK.getStatusCode());

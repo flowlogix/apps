@@ -90,8 +90,9 @@ class StarterPageIT {
     void jarPackaging() {
         page.selectPackagingType("JAR");
         assertThat(page.getOtherPackagingType()).isEmpty();
-        assertThat(page.curlCommand()).doesNotContain("packagingType");
-        assertThat(page.mavenCommand()).doesNotContain("packagingType");
+        // the generator defaults to war, so jar has to be explicit
+        assertThat(page.curlCommand()).contains("packagingType=jar");
+        assertThat(page.mavenCommand()).contains("-DpackagingType=\"jar\"");
     }
 
     @Test

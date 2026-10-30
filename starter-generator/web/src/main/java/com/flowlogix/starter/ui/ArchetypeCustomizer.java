@@ -42,6 +42,7 @@ import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.defaultValue;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 
 @Slf4j
@@ -64,20 +65,21 @@ public class ArchetypeCustomizer implements Serializable {
     private String group = "";
     private String projectName = "";
     private String packageName = "";
-    private BaseType baseType = BaseType.PAYARA;
-    private String packagingType = "war";
+    // initial choices are the generator's defaults, so the page, the CLI and a bare request agree
+    private BaseType baseType = BaseType.valueOf(defaultValue("baseType").toUpperCase());
+    private String packagingType = defaultValue("packagingType");
     private String otherPackagingType = "";
     private String version;
     private String archetypeVersion;
 
-    private boolean useShiro = true;
-    private boolean useAgenticAI = true;
-    private boolean useOmniFaces = true;
-    private boolean usePrimeFaces = true;
-    private boolean useLazyModel = true;
-    private boolean useMavenCache = true;
-    private boolean useCodeCoverage = true;
-    private boolean useArquillianGraphene = true;
+    private boolean useShiro = flag("useShiro");
+    private boolean useAgenticAI = flag("useAgenticAI");
+    private boolean useOmniFaces = flag("useOmniFaces");
+    private boolean usePrimeFaces = flag("usePrimeFaces");
+    private boolean useLazyModel = flag("useLazyModel");
+    private boolean useMavenCache = flag("useMavenCache");
+    private boolean useCodeCoverage = flag("useCodeCoverage");
+    private boolean useArquillianGraphene = flag("useArquillianGraphene");
 
     public StreamedContent getDownload() {
         ReturnValue result = generator.generateArchetype(getParameters(false));
@@ -133,12 +135,14 @@ public class ArchetypeCustomizer implements Serializable {
 
     private String processPackagingType() {
         return switch (packagingType) {
-            case "jar", "JAR" -> "";
-            case "other" -> "jar".equalsIgnoreCase(otherPackagingType)
-                    ? "" : otherPackagingType.toLowerCase();
+            case "other" -> otherPackagingType.toLowerCase();
             case null -> "";
             default -> packagingType.toLowerCase();
         };
+    }
+
+    private static boolean flag(String property) {
+        return Boolean.parseBoolean(defaultValue(property));
     }
 
     public String getCurlCommand() throws MalformedURLException {

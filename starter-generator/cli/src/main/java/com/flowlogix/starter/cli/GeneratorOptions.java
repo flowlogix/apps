@@ -17,6 +17,7 @@ package com.flowlogix.starter.cli;
 
 import com.flowlogix.starter.common.ArchetypeMetadata;
 import com.flowlogix.starter.common.ArchetypeMetadata.Property;
+import com.flowlogix.starter.common.StarterParameters;
 import io.quarkus.picocli.runtime.PicocliCommandLineFactory;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
@@ -62,13 +63,15 @@ class GeneratorOptions {
     }
 
     /**
-     * The options given on the command line, under the generator's parameter names.
+     * The options given on the command line, under the generator's parameter names, completed with the
+     * generator's defaults, so that the project does not depend on the version of the generator called.
      */
     Map<String, String> parameters() {
         var parameters = new LinkedHashMap<String, String>();
         options.forEach((name, option) -> {
-            if (option.getValue() != null) {
-                parameters.put(name, option.getValue());
+            String value = option.getValue() != null ? option.getValue() : StarterParameters.DEFAULTS.get(name);
+            if (value != null) {
+                parameters.put(name, value);
             }
         });
         return parameters;
@@ -83,9 +86,11 @@ class GeneratorOptions {
     }
 
     private static OptionSpec.Builder option(Property property) {
-        boolean flag = "true".equals(property.defaultValue()) || "false".equals(property.defaultValue());
+        // the generator's default, which may differ from the archetype's own
+        String defaultValue = StarterParameters.defaultValue(property);
+        boolean flag = "true".equals(defaultValue) || "false".equals(defaultValue);
         var option = OptionSpec.builder("--" + optionName(property.key()))
-                .description(Stream.of(property.defaultValue() == null ? null : "default: " + property.defaultValue(),
+                .description(Stream.of(defaultValue == null ? null : "default: " + defaultValue,
                                 property.validationRegex() == null ? null : "must match " + property.validationRegex())
                         .filter(Objects::nonNull).collect(Collectors.joining(", ")));
         return flag ? option.arity("0..1").fallbackValue("true").paramLabel("<true|false>")

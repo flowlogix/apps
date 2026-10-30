@@ -40,12 +40,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_GROUP;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULTS;
 import static com.flowlogix.util.Streams.readString;
 
 @Slf4j
@@ -201,10 +203,9 @@ public class ArchetypeGenerator {
         }
         parameters.put("groupId", DEFAULT_GROUP);
         parameters.put("artifactId", DEFAULT_ARTIFACT);
-        parameters.put("projectName", "Starter Project");
         parameters.put("package", "%s.%s".formatted(parameters.get("groupId"), parameters.get("artifactId")));
-        parameters.put("version", "1.x-SNAPSHOT");
-        parameters.put("baseType", "payara");
+        // same defaults as the web page, so a bare request and the page produce the same project
+        new TreeMap<>(DEFAULTS).forEach(parameters::put);
 
         if (inputParameters != null) {
             for (Parameter parameter : inputParameters) {

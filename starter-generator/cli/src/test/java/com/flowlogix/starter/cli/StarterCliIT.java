@@ -16,25 +16,57 @@
 package com.flowlogix.starter.cli;
 
 import com.flowlogix.starter.common.ArchetypeMetadata;
+import com.flowlogix.starter.common.StarterParameters;
 import io.quarkus.test.junit.main.LaunchResult;
 import io.quarkus.test.junit.main.QuarkusMainLauncher;
 import io.quarkus.test.junit.main.QuarkusMainTest;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static java.net.HttpURLConnection.HTTP_BAD_REQUEST;
 import static java.net.HttpURLConnection.HTTP_INTERNAL_ERROR;
 import static java.net.HttpURLConnection.HTTP_OK;
+import static java.util.function.Predicate.not;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @QuarkusMainTest
 class StarterCliIT {
     private static final String ARCHIVE_TYPE = "application/octet-stream";
+
+    /**
+     * The matrix parameters of a request, from its path or from a curl command, by name: what the generator
+     * sees, independent of the parameters' order and of the generator's address.
+     */
+    private static Map<String, String> parameters(String request) {
+        String path = request.contains("\"http") ? request.substring(request.indexOf("\"http") + 1,
+                request.indexOf('"', request.indexOf("\"http") + 1)) : request;
+        return Stream.of(path.substring(path.lastIndexOf('/') + 1).split(";")).filter(not(String::isEmpty))
+                .map(parameter -> parameter.split("=", 2))
+                .collect(Collectors.toMap(parameter -> parameter[0],
+                        parameter -> URLDecoder.decode(parameter[1], StandardCharsets.UTF_8)));
+    }
+
+    /**
+     * The parameters the CLI sends for the given group and artifact and the options left out,
+     * which are the generator's defaults.
+     */
+    private static Map<String, String> expectedParameters(String group, String artifact) {
+        var expected = new HashMap<>(StarterParameters.DEFAULTS);
+        expected.put(StarterParameters.GROUP, group);
+        expected.put(StarterParameters.ARTIFACT, artifact);
+        expected.put(StarterParameters.PACKAGE, group);
+        return expected;
+    }
 
     private static LaunchResult generate(QuarkusMainLauncher launcher, URI generatorUrl, Path dir, String... options) {
         return launcher.launch(Stream.concat(Stream.of("-g", "com.acme", "-a", "app", "-o", dir.toString(),
@@ -48,8 +80,11 @@ class StarterCliIT {
                     "--useShiro");
 
             assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-            assertThat(generator.getRequests()).containsExactly(
-                    "/sg/download/;group=com.acme;artifact=app;baseType=glassfish;useShiro=true;package=com.acme");
+            // the generator's defaults are sent too, so the project does not depend on the generator's version
+            var expected = expectedParameters("com.acme", "app");
+            expected.put("baseType", "glassfish");
+            assertThat(generator.getRequests()).hasSize(1).first().extracting(StarterCliIT::parameters)
+                    .asInstanceOf(InstanceOfAssertFactories.MAP).containsExactlyInAnyOrderEntriesOf(expected);
             assertThat(dir.resolve("out/app/pom.xml")).hasContent("app/pom.xml");
             assertThat(dir.resolve("out/app/mvnw")).isExecutable();
             assertThat(result.getOutput()).contains("Created ");
@@ -62,6 +97,9 @@ class StarterCliIT {
 
         assertThat(ArchetypeMetadata.properties()).isNotEmpty().allSatisfy(property ->
                 assertThat(help).contains("--" + GeneratorOptions.optionName(property.key())));
+        // the help shows the generator's defaults, which are the web page's, not the archetype's own
+        assertThat(help).containsPattern("--packagingType=<value>\\s+default: war")
+                .containsPattern("--useShiro\\[=<true\\|false>]\\s+default: true");
     }
 
     @Test
@@ -69,8 +107,8 @@ class StarterCliIT {
         LaunchResult result = launcher.launch("-g", "com.acme", "-a", "app", "-o", dir.toString(), "--dry-run");
 
         assertThat(result.exitCode()).isZero();
-        assertThat(result.getOutput()).contains("curl -X GET -H \"Accept: application/octet-stream\" -o \"app.zip\" "
-                + "\"https://start.flowlogix.com/sg/download/;group=com.acme;artifact=app;package=com.acme\"");
+        assertThat(result.getOutput()).contains("curl -X GET -H \"Accept: application/octet-stream\" -o \"app.zip\" \"");
+        assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(expectedParameters("com.acme", "app"));
     }
 
     @Test
@@ -139,7 +177,8 @@ class StarterCliIT {
         LaunchResult result = launcher.launch("-o", dir.toString(), "--dry-run");
 
         assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        assertThat(result.getOutput()).contains("-o \"starter.zip\" "
-                + "\"https://start.flowlogix.com/sg/download/;group=com.example;artifact=starter;package=com.example\"");
+        assertThat(result.getOutput()).contains("-o \"starter.zip\" ");
+        assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(
+                expectedParameters(StarterParameters.DEFAULT_GROUP, StarterParameters.DEFAULT_ARTIFACT));
     }
 }

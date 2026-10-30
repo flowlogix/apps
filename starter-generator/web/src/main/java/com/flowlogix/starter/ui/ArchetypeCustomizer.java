@@ -41,6 +41,7 @@ import java.util.LinkedHashMap;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 
 @Slf4j
@@ -90,7 +91,7 @@ public class ArchetypeCustomizer implements Serializable {
         Callbacks.SerializableSupplier<InputStream> callback = () -> input;
 
         return DefaultStreamedContent.builder()
-                .name("%s.zip".formatted(artifact.isBlank() ? "starter" : artifact.toLowerCase().trim()))
+                .name("%s.zip".formatted(artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim()))
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .stream(callback)
                 .writer(output -> generator.writer(result, input, output, true))
@@ -149,7 +150,7 @@ public class ArchetypeCustomizer implements Serializable {
                 ? ShrinkWrapManipulator.toHttpsURL(URI.create(Faces.getRequestBaseURL()).toURL())
                 : Faces.getRequestBaseURL();
         return DownloadRequest.curlCommand(DownloadRequest.url("%sdownload/".formatted(baseURL), parameters),
-                artifact.isBlank() ? "starter" : artifact.toLowerCase().trim());
+                artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim());
     }
 
     public String getMavenCommand() {

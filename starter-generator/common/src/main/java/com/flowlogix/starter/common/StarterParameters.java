@@ -28,4 +28,8 @@ public class StarterParameters {
     public static final String ARTIFACT = "artifact";
     public static final String PACKAGE = "package";
     public static final String ARCHETYPE_VERSION = "archetypeVersion";
+    /** Group the generator uses when none is given. */
+    public static final String DEFAULT_GROUP = "com.example";
+    /** Artifact the generator uses when none is given. */
+    public static final String DEFAULT_ARTIFACT = "starter";
 }

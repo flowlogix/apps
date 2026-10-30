@@ -135,10 +135,11 @@ class StarterCliIT {
     }
 
     @Test
-    void requiresTheGroupAndTheArtifact(QuarkusMainLauncher launcher) {
-        LaunchResult result = launcher.launch("--dry-run");
+    void usesTheGeneratorsDefaultGroupAndArtifact(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--dry-run");
 
-        assertThat(result.exitCode()).isEqualTo(2);
-        assertThat(result.getErrorOutput()).contains("Missing required options");
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(result.getOutput()).contains("-o \"starter.zip\" "
+                + "\"https://start.flowlogix.com/sg/download/;group=com.example;artifact=starter;package=com.example\"");
     }
 }

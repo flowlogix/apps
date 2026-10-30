@@ -45,6 +45,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.lang.model.SourceVersion;
 import static com.flowlogix.starter.common.StarterParameters.ARCHETYPE_VERSION;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
@@ -63,7 +64,7 @@ public class DownloadResource {
 
     @GET
     @Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN})
-    public Response downloadFile(@MatrixParam(ARTIFACT) @DefaultValue("starter")
+    public Response downloadFile(@MatrixParam(ARTIFACT) @DefaultValue(DEFAULT_ARTIFACT)
                                  @Pattern(regexp = "^[a-zA-Z0-9_-]+$",
                                           message = "Artifact ID can only contain letters, numbers, underscores, and hyphens")
                                  @Size(min = 1, max = 100, message = "Artifact ID must be between 1 and 100 characters")

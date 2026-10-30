@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static com.flowlogix.starter.common.StarterParameters.ARCHETYPE_VERSION;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_GROUP;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
@@ -44,10 +46,10 @@ class GeneratorOptions {
 
     @Produces
     CommandLine commandLine(PicocliCommandLineFactory factory) {
-        add(GROUP, OptionSpec.builder("-g", "--" + GROUP).required(true).paramLabel("<id>")
-                .description("Maven groupId"));
-        add(ARTIFACT, OptionSpec.builder("-a", "--" + ARTIFACT).required(true).paramLabel("<id>")
-                .description("Maven artifactId and project directory name"));
+        add(GROUP, OptionSpec.builder("-g", "--" + GROUP).defaultValue(DEFAULT_GROUP).paramLabel("<id>")
+                .description("Maven groupId (default: ${DEFAULT-VALUE})"));
+        add(ARTIFACT, OptionSpec.builder("-a", "--" + ARTIFACT).defaultValue(DEFAULT_ARTIFACT).paramLabel("<id>")
+                .description("Maven artifactId and project directory name (default: ${DEFAULT-VALUE})"));
         add(PACKAGE, OptionSpec.builder("-p", "--" + PACKAGE).paramLabel("<package>")
                 .description("Base Java package (default: the group)"));
         add(ARCHETYPE_VERSION, OptionSpec.builder("--" + ARCHETYPE_VERSION).paramLabel("<version>")

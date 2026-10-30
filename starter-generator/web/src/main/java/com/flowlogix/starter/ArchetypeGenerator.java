@@ -44,6 +44,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_GROUP;
 import static com.flowlogix.util.Streams.readString;
 
 @Slf4j
@@ -197,8 +199,8 @@ public class ArchetypeGenerator {
             parameters.put("maven.multiModuleProjectDirectory", projectDirectory);
             parameters.put("outputDirectory", projectDirectory);
         }
-        parameters.put("groupId", "com.example");
-        parameters.put("artifactId", "starter");
+        parameters.put("groupId", DEFAULT_GROUP);
+        parameters.put("artifactId", DEFAULT_ARTIFACT);
         parameters.put("projectName", "Starter Project");
         parameters.put("package", "%s.%s".formatted(parameters.get("groupId"), parameters.get("artifactId")));
         parameters.put("version", "1.x-SNAPSHOT");

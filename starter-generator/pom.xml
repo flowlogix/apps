@@ -3,27 +3,44 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <!-- not apps-root, whose dependencies are the web applications' and would end up in the CLI -->
     <parent>
         <groupId>com.flowlogix</groupId>
-        <artifactId>apps-root</artifactId>
-        <version>1.x-SNAPSHOT</version>
+        <artifactId>infra-pom</artifactId>
+        <version>147</version>
+        <relativePath/>
     </parent>
 
-    <artifactId>starter-generator</artifactId>
-    <name>Starter Generator</name>
-    <packaging>war</packaging>
+    <groupId>com.flowlogix</groupId>
+    <artifactId>starter-generator-parent</artifactId>
+    <version>1.x-SNAPSHOT</version>
+    <name>Starter Generator Parent</name>
+    <packaging>pom</packaging>
+
+    <properties>
+        <checkstyle.suppressionsLocation>${maven.multiModuleProjectDirectory}/src/checkstyle/suppressions.xml</checkstyle.suppressionsLocation>
+        <depchain.version>135</depchain.version>
+    </properties>
+
+    <modules>
+        <module>common</module>
+        <module>web</module>
+        <module>cli</module>
+    </modules>
 
     <dependencies>
         <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.28.0</version>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
-            <!-- Source of the allowlist of archetype property names, see DownloadResource -->
-            <groupId>com.flowlogix.archetypes</groupId>
-            <artifactId>starter</artifactId>
-            <version>158</version>
+            <groupId>com.flowlogix.depchain</groupId>
+            <artifactId>unit-test</artifactId>
+            <version>${depchain.version}</version>
+            <scope>test</scope>
+            <type>pom</type>
         </dependency>
     </dependencies>
 </project>

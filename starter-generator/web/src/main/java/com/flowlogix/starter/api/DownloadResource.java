@@ -18,13 +18,16 @@ package com.flowlogix.starter.api;
 import com.flowlogix.starter.ArchetypeGenerator;
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
-import java.io.IOException;
+import com.flowlogix.starter.common.ArchetypeMetadata;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import jakarta.inject.Inject;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.DefaultValue;
@@ -38,19 +41,20 @@ import jakarta.ws.rs.core.PathSegment;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import jakarta.ws.rs.core.UriInfo;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
+import javax.lang.model.SourceVersion;
+import static com.flowlogix.starter.common.StarterParameters.ARCHETYPE_VERSION;
+import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
+import static com.flowlogix.starter.common.StarterParameters.GROUP;
+import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
 @Slf4j
 @Path("/")
 public class DownloadResource {
-    private static final String ARCHETYPE_METADATA = "META-INF/maven/archetype-metadata.xml";
     // Allowlist of matrix parameters passed to the generator, mapped to generator parameter names
     private static final Map<String, String> ALLOWED_PARAMETERS = allowedParameters();
+    // Values the archetype would accept but that would produce a broken project
+    private static final Map<String, Rule> RULES = rules();
 
     @Inject
     ArchetypeGenerator generator;
@@ -59,7 +63,7 @@ public class DownloadResource {
 
     @GET
     @Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN})
-    public Response downloadFile(@MatrixParam("artifact") @DefaultValue("starter")
+    public Response downloadFile(@MatrixParam(ARTIFACT) @DefaultValue("starter")
                                  @Pattern(regexp = "^[a-zA-Z0-9_-]+$",
                                           message = "Artifact ID can only contain letters, numbers, underscores, and hyphens")
                                  @Size(min = 1, max = 100, message = "Artifact ID must be between 1 and 100 characters")
@@ -83,30 +87,40 @@ public class DownloadResource {
         Map<String, List<String>> matrix = segments.isEmpty() ? Map.of() : segments.getLast().getMatrixParameters();
         return matrix.entrySet().stream()
                 .filter(entry -> ALLOWED_PARAMETERS.containsKey(entry.getKey()))
-                .map(entry -> new Parameter(ALLOWED_PARAMETERS.get(entry.getKey()),
-                        // repeated matrix parameters must not bypass validation
-                        "artifact".equals(entry.getKey()) ? artifactId : entry.getValue().getLast()))
+                // repeated matrix parameters must not bypass validation
+                .map(entry -> parameter(entry.getKey(), ARTIFACT.equals(entry.getKey())
+                        ? artifactId : entry.getValue().getLast()))
                 .toArray(Parameter[]::new);
     }
 
+    private static Parameter parameter(String name, String value) {
+        Rule rule = RULES.get(name);
+        if (rule != null && !value.isBlank() && !rule.isValid().test(value)) {
+            throw new ConstraintViolationException("Invalid %s '%s': %s".formatted(name, value, rule.expected()), Set.of());
+        }
+        return new Parameter(ALLOWED_PARAMETERS.get(name), value);
+    }
+
     private static Map<String, String> allowedParameters() {
-        return Stream.concat(archetypePropertyNames().stream().map(name -> Map.entry(name, name)), Stream.of(
-                        Map.entry("group", "groupId"),
-                        Map.entry("artifact", "artifactId"),
-                        Map.entry("package", "package"),
-                        Map.entry("archetypeVersion", "archetypeVersion")))
+        // Properties declared by the archetype are the only safe pass-through names
+        return Stream.concat(ArchetypeMetadata.properties().stream()
+                        .map(property -> Map.entry(property.key(), property.key())), Stream.of(
+                        Map.entry(GROUP, "groupId"),
+                        Map.entry(ARTIFACT, "artifactId"),
+                        Map.entry(PACKAGE, "package"),
+                        Map.entry(ARCHETYPE_VERSION, "archetypeVersion")))
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (first, var) -> first));
     }
 
-    // Properties declared by the archetype are the only safe pass-through names
-    @SneakyThrows({IOException.class, ParserConfigurationException.class, SAXException.class})
-    private static List<String> archetypePropertyNames() {
-        var factory = DocumentBuilderFactory.newInstance();
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        try (var in = DownloadResource.class.getClassLoader().getResourceAsStream(ARCHETYPE_METADATA)) {
-            var nodes = factory.newDocumentBuilder().parse(in).getElementsByTagName("requiredProperty");
-            return IntStream.range(0, nodes.getLength()).mapToObj(index -> ((Element) nodes.item(index))
-                    .getAttribute("key")).toList();
-        }
+    private static Map<String, Rule> rules() {
+        var rules = new HashMap<String, Rule>();
+        ArchetypeMetadata.properties().stream().filter(property -> property.validationRegex() != null)
+                .forEach(property -> rules.put(property.key(), new Rule(value -> value.matches(property.validationRegex()),
+                        "must match " + property.validationRegex())));
+        rules.put(GROUP, new Rule(value -> value.matches("[A-Za-z0-9_.-]+"), "use only letters, digits, '.', '-' and '_'"));
+        rules.put(PACKAGE, new Rule(SourceVersion::isName, "not a valid Java package name"));
+        return Map.copyOf(rules);
     }
+
+    private record Rule(Predicate<String> isValid, String expected) { }
 }

@@ -16,6 +16,7 @@
 package com.flowlogix.starter;
 
 import com.flowlogix.test.AppServerLifecycle;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.jboss.arquillian.container.test.api.RunAsClient;
@@ -72,6 +73,22 @@ class DownloadResourceIT {
         assertThat(get("artifact=my.app").statusCode()).isEqualTo(BAD_REQUEST.getStatusCode());
         assertThat(get("artifact=" + "a".repeat(MAX_ARTIFACT_LENGTH + 1)).statusCode())
                 .isEqualTo(BAD_REQUEST.getStatusCode());
+    }
+
+    @Test
+    void rejectionTellsWhy() throws IOException, InterruptedException {
+        assertRejected("artifact=my.app", "Artifact ID can only contain letters, numbers, underscores, and hyphens");
+        assertRejected("artifact=x;baseType=foo", "Invalid baseType 'foo': must match base|infra|payara|glassfish");
+        assertRejected("artifact=x;group=com%20acme", "Invalid group 'com acme'");
+        assertRejected("artifact=x;package=com.acme.new", "Invalid package 'com.acme.new'");
+    }
+
+    private void assertRejected(String matrixParameters, String reason) throws IOException, InterruptedException {
+        var response = get(matrixParameters);
+        assertThat(response.statusCode()).isEqualTo(BAD_REQUEST.getStatusCode());
+        assertThat(response.headers().firstValue("Content-Type")).hasValueSatisfying(type ->
+                assertThat(type).startsWith(MediaType.TEXT_PLAIN));
+        assertThat(new String(response.body(), StandardCharsets.UTF_8)).startsWith(reason);
     }
 
     private HttpResponse<byte[]> get(String matrixParameters) throws IOException, InterruptedException {

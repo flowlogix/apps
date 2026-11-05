@@ -15,23 +15,17 @@
  */
 package com.flowlogix.starter;
 
-import jakarta.annotation.Resource;
-import jakarta.enterprise.concurrent.ManagedExecutorService;
+import com.flowlogix.starter.common.DownloadRequest;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.omnifaces.util.Faces;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -41,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
@@ -53,14 +45,8 @@ import static com.flowlogix.util.Streams.readString;
 @Slf4j
 @ApplicationScoped
 public class ArchetypeGenerator {
-    @SuppressWarnings("checkstyle:MagicNumber")
-    private static final int BUFFER_SIZE = 4096;
     private final Semaphore semaphore;
     private final String jvmOptions;
-
-    @Getter
-    @Resource
-    private ManagedExecutorService executorService;
 
     public record Parameter(@NonNull String key, String value) { }
     public record ReturnValue(Path temporaryPath, int status, String output) implements AutoCloseable {
@@ -125,63 +111,9 @@ public class ArchetypeGenerator {
                         .formatted(entry.getKey(), entry.getValue()))).toList();
     }
 
-    public Future<ReturnValue> zipToStream(ReturnValue returnValue, OutputStream zipFileStream,
-                                           ExecutorService executorService) {
-        return executorService.submit(() -> zipToStream(returnValue, zipFileStream));
-    }
-
-    @SneakyThrows(IOException.class)
-    public void createZipStream(ReturnValue result, OutputStream outputStream) {
-        try (var output = new PipedOutputStream();
-             var input = new PipedInputStream(output, BUFFER_SIZE)) {
-            zipToStream(result, output, executorService);
-            writer(result, input, outputStream, false);
-        }
-    }
-
-    @SneakyThrows(IOException.class)
-    public InputStream createZipStream(ReturnValue result) {
-        var output = new PipedOutputStream();
-        zipToStream(result, output, executorService);
-        return new PipedInputStream(output, BUFFER_SIZE);
-    }
-
-    public void writer(ReturnValue result, InputStream inputStream, OutputStream outputStream, boolean closeStreams) {
-        try {
-            while (true) {
-                byte[] readBytes = inputStream.readNBytes(BUFFER_SIZE);
-                if (readBytes.length == 0) {
-                    break;
-                }
-                log.debug("Writing {} bytes to output stream", readBytes.length);
-                outputStream.write(readBytes);
-                outputStream.flush();
-            }
-        } catch (IOException e) {
-            log.debug("Failed to stream zip file.", e);
-            if (Faces.hasContext()) {
-                Faces.responseComplete();
-            }
-        } finally {
-            log.debug("Cleanup");
-            result.close();
-            if (closeStreams) {
-                try {
-                    inputStream.close();
-                    outputStream.close();
-                } catch (IOException e) {
-                    log.debug("Failed to close zip streams", e);
-                }
-            }
-        }
-    }
-
-    @SneakyThrows(IOException.class)
-    private static ReturnValue zipToStream(ReturnValue returnValue, OutputStream zipFileStream) {
-        if (returnValue.status == 0) {
-            createZipFile(returnValue.temporaryPath, zipFileStream);
-        }
-        return returnValue;
+    static String cacheKey(Parameter[] inputParameters) {
+        return DownloadRequest.curlCommand(DownloadRequest.url("download/",
+                new TreeMap<>(extractParameters(inputParameters, null))), DEFAULT_ARTIFACT);
     }
 
     @SneakyThrows(IOException.class)
@@ -205,7 +137,7 @@ public class ArchetypeGenerator {
         parameters.put("artifactId", DEFAULT_ARTIFACT);
         parameters.put("package", "%s.%s".formatted(parameters.get("groupId"), parameters.get("artifactId")));
         // same defaults as the web page, so a bare request and the page produce the same project
-        new TreeMap<>(DEFAULTS).forEach(parameters::put);
+        parameters.putAll(new TreeMap<>(DEFAULTS));
 
         if (inputParameters != null) {
             for (Parameter parameter : inputParameters) {
@@ -232,7 +164,7 @@ public class ArchetypeGenerator {
         Files.delete(path);
     }
 
-    private static void createZipFile(Path sourceDirPath, OutputStream outputStream) throws IOException {
+    static void createZipFile(Path sourceDirPath, OutputStream outputStream) throws IOException {
         try (var zipOutputStream = new ZipArchiveOutputStream(outputStream);
              var sourceDirPaths = Files.walk(sourceDirPath)) {
             sourceDirPaths.forEach(path -> addZipEntry(sourceDirPath, path, zipOutputStream));

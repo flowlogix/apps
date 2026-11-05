@@ -56,6 +56,8 @@
 
         <p:focus/>
         <h:form id="starterForm">
+            <p:remoteCommand name="warmArchetypeCache" autoRun="true" process="@this"
+                             action="#{archetype.warmCache}"/>
             <div class="text-center mb-2">
                 <p:commandButton value="Generate Project" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
                                  icon="pi pi-arrow-down" styleClass="download-button">
@@ -67,16 +69,24 @@
                 <h3 class="mt-0 text-600">Project Configuration</h3>
                 <div class="formgrid grid">
                     <div class="field col-12 md:col-6">
-                        <p:inputText id="artifact" value="#{archetype.artifact}" placeholder="Artifact Name" styleClass="w-full"/>
+                        <p:inputText id="artifact" value="#{archetype.artifact}" placeholder="Artifact Name" styleClass="w-full">
+                            <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
+                        </p:inputText>
                     </div>
                     <div class="field col-12 md:col-6">
-                        <p:inputText id="group" value="#{archetype.group}" placeholder="Group ID" styleClass="w-full"/>
+                        <p:inputText id="group" value="#{archetype.group}" placeholder="Group ID" styleClass="w-full">
+                            <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
+                        </p:inputText>
                     </div>
                     <div class="field col-12 md:col-6">
-                        <p:inputText id="projectName" value="#{archetype.projectName}" placeholder="Project Name" styleClass="w-full"/>
+                        <p:inputText id="projectName" value="#{archetype.projectName}" placeholder="Project Name" styleClass="w-full">
+                            <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
+                        </p:inputText>
                     </div>
                     <div class="field col-12 md:col-6">
-                        <p:inputText id="packageName" value="#{archetype.packageName}" placeholder="Package Name" styleClass="w-full"/>
+                        <p:inputText id="packageName" value="#{archetype.packageName}" placeholder="Package Name" styleClass="w-full">
+                            <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
+                        </p:inputText>
                     </div>
                     <div class="field col-12 md:col-6">
                         <h3 class="mt-0 text-600">Base POM type</h3>
@@ -85,11 +95,13 @@
                             <f:selectItem itemLabel="Infra" itemValue="INFRA"/>
                             <f:selectItem itemLabel="Payara" itemValue="PAYARA"/>
                             <f:selectItem itemLabel="GlassFish" itemValue="GLASSFISH"/>
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectOneRadio>
                     </div>
                     <div class="field col-12 md:col-6">
-                        <p:inputText id="version" value="#{archetype.version}" placeholder="Version" styleClass="w-full"/>
+                        <p:inputText id="version" value="#{archetype.version}" placeholder="Version" styleClass="w-full">
+                            <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
+                        </p:inputText>
                     </div>
                 </div>
             </div>
@@ -102,14 +114,18 @@
                         <f:selectItem itemLabel="WAR" itemValue="war"/>
                         <f:selectItem itemLabel="EAR" itemValue="ear"/>
                         <f:selectItem itemLabel="Other" itemValue="other"/>
-                        <p:ajax update="@form" process="@form"/>
+                        <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                     </p:selectOneRadio>
                 </div>
                 <p:panelGrid id="otherPackagingType" columns="1" rendered="#{archetype.packagingType == 'other'}" styleClass="field">
-                    <p:inputText id="otherPackagingTypeInput" value="#{archetype.otherPackagingType}" placeholder="packaging type" styleClass="w-full"/>
+                    <p:inputText id="otherPackagingTypeInput" value="#{archetype.otherPackagingType}" placeholder="packaging type" styleClass="w-full">
+                        <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
+                    </p:inputText>
                 </p:panelGrid>
                 <div class="field">
-                    <p:inputText id="archetypeVersion" value="#{archetype.archetypeVersion}" placeholder="Archetype Version to use" styleClass="w-full"/>
+                    <p:inputText id="archetypeVersion" value="#{archetype.archetypeVersion}" placeholder="Archetype Version to use" styleClass="w-full">
+                        <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
+                    </p:inputText>
                 </div>
             </div>
 
@@ -117,43 +133,43 @@
                 <div class="formgrid grid">
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useShiro" value="#{archetype.useShiro}" itemLabel="Enable Apache Shiro">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useAgenticAI" value="#{archetype.useAgenticAI}" itemLabel="Enable Agentic AI">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useOmniFaces" value="#{archetype.useOmniFaces}" itemLabel="Enable OmniFaces">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="usePrimeFaces" value="#{archetype.usePrimeFaces}" itemLabel="Enable PrimeFaces">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useLazyModel" value="#{archetype.useLazyModel}" itemLabel="Use JPA Lazy DataModel">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useMavenCache" value="#{archetype.useMavenCache}" itemLabel="Use Maven Build Cache">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useCodeCoverage" value="#{archetype.useCodeCoverage}" itemLabel="Enable JaCoCo Code Coverage">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                     <div class="field-checkbox col-12 md:col-6">
                         <p:selectBooleanCheckbox id="useArquillianGraphene" value="#{archetype.useArquillianGraphene}"
                                                  itemLabel="Enable Selenium / Drone / Graphene UI Tests">
-                            <p:ajax update="@form" process="@form"/>
+                            <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectBooleanCheckbox>
                     </div>
                 </div>
@@ -170,7 +186,8 @@
                 <h3 class="mt-0 text-600">Command Generation</h3>
                 <div class="mb-3">
                     <p:commandButton id="updateCommands" value="Update commands" update="@form, curlCommand, mavenCommand"
-                                     validateClient="true" icon="pi pi-refresh" styleClass="mr-2"/>
+                                     action="#{archetype.warmCache}" validateClient="true"
+                                     icon="pi pi-refresh" styleClass="mr-2"/>
                 </div>
 
                 <div class="command-section">

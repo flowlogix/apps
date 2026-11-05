@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.net.URL;
 import static com.flowlogix.starter.StarterPage.FEATURES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.jboss.arquillian.graphene.Graphene.guardAjax;
 
 @RunAsClient
 @Tag("UserInterface")
@@ -122,8 +123,8 @@ class StarterPageIT {
 
     @Test
     void pathTraversalRejected() {
-        page.getArtifact().sendKeys("../evil");
-        page.getGroup().sendKeys("com.acme");
+        guardAjax(page.getArtifact()).sendKeys("../evil");
+        guardAjax(page.getGroup()).sendKeys("com.acme");
         page.updateCommandsRejected();
         assertThat(page.curlCommand()).doesNotContain("evil");
         assertThat(page.mavenCommand()).doesNotContain("evil");

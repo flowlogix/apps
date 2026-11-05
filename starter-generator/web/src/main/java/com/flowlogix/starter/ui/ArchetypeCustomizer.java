@@ -16,6 +16,7 @@
 package com.flowlogix.starter.ui;
 
 import com.flowlogix.starter.ArchetypeGenerator;
+import com.flowlogix.starter.ArchetypeCache;
 import com.flowlogix.starter.common.DownloadRequest;
 import com.flowlogix.util.ShrinkWrapManipulator;
 import jakarta.enterprise.context.SessionScoped;
@@ -27,11 +28,10 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.omnifaces.util.Faces;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
-import org.primefaces.util.Callbacks;
-import java.io.InputStream;
 import java.io.Serial;
 import java.io.Serializable;
 import java.net.MalformedURLException;
@@ -39,7 +39,6 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
-import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.defaultValue;
@@ -54,7 +53,11 @@ public class ArchetypeCustomizer implements Serializable {
     private static final long serialVersionUID = 3L;
 
     @Inject
-    ArchetypeGenerator generator;
+    ArchetypeCache cache;
+
+    @Inject
+    @ConfigProperty(name = "com.flowlogix.starter.cache-warmup-delay-ms", defaultValue = "2000")
+    private int cacheWarmupDelay;
 
     private enum BaseType {
         BASE, INFRA, PAYARA, GLASSFISH
@@ -82,22 +85,22 @@ public class ArchetypeCustomizer implements Serializable {
     private boolean useArquillianGraphene = flag("useArquillianGraphene");
 
     public StreamedContent getDownload() {
-        ReturnValue result = generator.generateArchetype(getParameters(false));
+        var result = cache.download(getParameters(false));
         if (result.status() != 0) {
             result.close();
             Faces.redirect(Faces.getRequestURL());
             return null;
         }
 
-        InputStream input = generator.createZipStream(result);
-        Callbacks.SerializableSupplier<InputStream> callback = () -> input;
-
         return DefaultStreamedContent.builder()
                 .name("%s.zip".formatted(artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim()))
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .stream(callback)
-                .writer(output -> generator.writer(result, input, output, true))
+                .writer(result::write)
                 .build();
+    }
+
+    public void warmCache() {
+        cache.warm(getParameters(false));
     }
 
     private Parameter[] getParameters(boolean forCurl) {

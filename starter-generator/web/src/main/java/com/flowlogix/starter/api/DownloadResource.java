@@ -15,9 +15,8 @@
  */
 package com.flowlogix.starter.api;
 
-import com.flowlogix.starter.ArchetypeGenerator;
+import com.flowlogix.starter.ArchetypeCache;
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
-import com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 import com.flowlogix.starter.common.ArchetypeMetadata;
 import java.util.HashMap;
 import java.util.List;
@@ -58,7 +57,7 @@ public class DownloadResource {
     private static final Map<String, Rule> RULES = rules();
 
     @Inject
-    ArchetypeGenerator generator;
+    ArchetypeCache cache;
     @Context
     UriInfo uriInfo;
 
@@ -69,7 +68,7 @@ public class DownloadResource {
                                           message = "Artifact ID can only contain letters, numbers, underscores, and hyphens")
                                  @Size(min = 1, max = 100, message = "Artifact ID must be between 1 and 100 characters")
                                  String artifactId) {
-        ReturnValue result = generator.generateArchetype(parameters(artifactId));
+        var result = cache.download(parameters(artifactId));
 
         if (result.status() != 0) {
             result.close();
@@ -77,7 +76,7 @@ public class DownloadResource {
                     .entity(result.output()).build();
         }
 
-        StreamingOutput stream = outputStream -> generator.createZipStream(result, outputStream);
+        StreamingOutput stream = result::write;
         return Response.ok(stream)
                 .header("Content-Disposition", "attachment; filename=\"%s.zip\"".formatted(artifactId))
                 .build();

@@ -22,24 +22,22 @@ import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Slf4j
 class ArchetypeRunnerIT {
     @Test
-    void generateArchetype() throws IOException, ExecutionException, InterruptedException {
+    void generateArchetype() throws IOException {
         var path = Path.of("target/starter.zip");
         Path temporaryPath;
         var archetypeGenerator = new ArchetypeGenerator();
-        try (var executor = Executors.newSingleThreadExecutor();
-             ReturnValue result = archetypeGenerator.generateArchetype(new Parameter[] {
+        try (ReturnValue result = archetypeGenerator.generateArchetype(new Parameter[] {
                      new Parameter("package", "com.example.starter")})) {
-            archetypeGenerator.zipToStream(result, new BufferedOutputStream(
-                    new FileOutputStream(path.toFile())), executor).get();
             assertThat(result.status()).withFailMessage(result.output()).isZero();
+            try (var output = new BufferedOutputStream(new FileOutputStream(path.toFile()))) {
+                ArchetypeGenerator.createZipFile(result.temporaryPath(), output);
+            }
             assertThat(path).isNotEmptyFile();
             temporaryPath = result.temporaryPath();
             log.debug("Generated project: {}", result.output());

@@ -138,6 +138,7 @@ public class ArchetypeCache {
         if (hours < 1 || maxEntries < 1) {
             throw new IllegalArgumentException("Cache hours and maximum entries must be positive");
         }
+        log.info("Archetype ZIP cache location: {}", Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath());
     }
 
     public void warm(Parameter[] parameters) {

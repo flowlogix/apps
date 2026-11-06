@@ -55,6 +55,7 @@ class ArchetypeCacheTest {
     void setup() {
         cache.hours = CACHE_HOURS;
         cache.maxEntries = 2;
+        cache.warmupEnabled = true;
         cache.clock = Clock.fixed(Instant.EPOCH, ZoneOffset.UTC);
         cache.generator = mock(ArchetypeGenerator.class);
         cache.executor = mock(ManagedExecutorService.class);
@@ -150,6 +151,49 @@ class ArchetypeCacheTest {
         assertThatThrownBy(() -> cache.download(differentParameters)).isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
         verify(cache.generator, times(3)).generateArchetype(any());
+    }
+
+    @Test
+    void warmupBudgetCountsOnlyNewJobsAndResumesAfterOneMinute() {
+        var budget = new ArchetypeCache.WarmupBudget();
+        final int limit = 5;
+        cache.warm(null, budget);
+        cache.warm(null, budget);
+        jobs.remove().run();
+        cache.warm(null, budget);
+        for (int index = 1; index < limit; index++) {
+            cache.warm(new Parameter[] {new Parameter("artifactId", "app-" + index)}, budget);
+        }
+        assertThat(jobs).hasSize(limit - 1);
+        var next = new Parameter[] {new Parameter("artifactId", "next")};
+        cache.warm(next, budget);
+        assertThat(jobs).hasSize(limit - 1);
+        cache.warm(next, new ArchetypeCache.WarmupBudget());
+        assertThat(jobs).hasSize(limit);
+        cache.clock = Clock.fixed(Instant.EPOCH.plus(Duration.ofMinutes(1)).minusSeconds(1), ZoneOffset.UTC);
+        cache.warm(new Parameter[] {new Parameter("artifactId", "after-pause")}, budget);
+        assertThat(jobs).hasSize(limit);
+        cache.clock = Clock.fixed(Instant.EPOCH.plus(Duration.ofMinutes(1)), ZoneOffset.UTC);
+        cache.warm(new Parameter[] {new Parameter("artifactId", "after-pause")}, budget);
+        assertThat(jobs).hasSize(limit + 1);
+        while (!jobs.isEmpty()) {
+            jobs.remove().run();
+        }
+    }
+
+    @Test
+    void disablingWarmupDoesNotPreventExplicitDownloads() {
+        cache.warmupEnabled = false;
+        cache.warm(null, new ArchetypeCache.WarmupBudget());
+        assertThat(jobs).isEmpty();
+        doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return null;
+        }).when(cache.executor).execute(any());
+        try (var download = cache.download(null)) {
+            assertThat(download.status()).isZero();
+        }
+        verify(cache.generator).generateArchetype(any());
     }
 
     @Test

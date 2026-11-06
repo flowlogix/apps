@@ -16,13 +16,17 @@
 package com.flowlogix.starter;
 
 import com.flowlogix.test.AppServerLifecycle;
+import com.flowlogix.util.ShrinkWrapManipulator;
 import org.eu.ingwar.tools.arquillian.extension.suite.annotations.ArquillianSuiteDeployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
+import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.graphene.page.Page;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.jboss.shrinkwrap.api.asset.StringAsset;
+import org.jboss.shrinkwrap.api.spec.WebArchive;
 import java.net.URL;
 import static com.flowlogix.starter.StarterPage.FEATURES;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +42,16 @@ class StarterPageIT {
 
     @Page
     private StarterPage page;
+
+    @SuppressWarnings("unused")
+    @Deployment(testable = false)
+    static WebArchive deploy() {
+        return ShrinkWrapManipulator.<WebArchive>createDeployment()
+                .addAsResource(new StringAsset("""
+                        com.flowlogix.starter.cache-warmup-delay-ms=100
+                        com.flowlogix.starter.cache-warmup-enabled=false
+                        """), "META-INF/microprofile-config.properties");
+    }
 
     @BeforeEach
     void openStarterPage() {

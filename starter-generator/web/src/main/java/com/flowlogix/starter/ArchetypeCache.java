@@ -29,6 +29,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -38,6 +40,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 
 /**
  * Node-local disk ZIPs indexed by normalized cURL commands.
@@ -53,6 +56,9 @@ public class ArchetypeCache {
     @Inject
     @ConfigProperty(name = "com.flowlogix.starter.cache-max-entries", defaultValue = "1000")
     int maxEntries;
+    @Inject
+    @ConfigProperty(name = "com.flowlogix.starter.cache-warmup-enabled", defaultValue = "true")
+    boolean warmupEnabled;
     @Resource
     ManagedExecutorService executor;
 
@@ -64,6 +70,30 @@ public class ArchetypeCache {
     private final Map<String, CachedZip> entries = new LinkedHashMap<>();
     private final Map<String, CompletableFuture<CachedZip>> pending = new HashMap<>();
     private boolean closed;
+
+    /**
+     * Per-session budget for speculative generations, independent of cached downloads.
+     */
+    public static class WarmupBudget implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+        private static final int GENERATIONS = 5;
+        private int generations;
+        private Instant resumeAt = Instant.MIN;
+
+        private synchronized boolean acquire(Instant now) {
+            if (generations == GENERATIONS) {
+                if (now.isBefore(resumeAt)) {
+                    return false;
+                }
+                generations = 0;
+            }
+            if (++generations == GENERATIONS) {
+                resumeAt = now.plus(Duration.ofMinutes(1));
+            }
+            return true;
+        }
+    }
 
     public record Download(int status, String output, InputStream input) implements AutoCloseable {
         @SneakyThrows(IOException.class)
@@ -97,13 +127,19 @@ public class ArchetypeCache {
     }
 
     public void warm(Parameter[] parameters) {
-        request(parameters);
+        warm(parameters, null);
+    }
+
+    public void warm(Parameter[] parameters, WarmupBudget budget) {
+        if (warmupEnabled) {
+            request(parameters, () -> budget == null || budget.acquire(clock.instant()));
+        }
     }
 
     @SneakyThrows(IOException.class)
     public Download download(Parameter[] parameters) {
         while (true) {
-            CachedZip zip = request(parameters).join();
+            CachedZip zip = request(parameters, () -> true).join();
             synchronized (this) {
                 if (zip.status != 0) {
                     return new Download(zip.status, zip.output, null);
@@ -116,7 +152,7 @@ public class ArchetypeCache {
         }
     }
 
-    private synchronized CompletableFuture<CachedZip> request(Parameter[] parameters) {
+    private synchronized CompletableFuture<CachedZip> request(Parameter[] parameters, BooleanSupplier allowGeneration) {
         if (closed) {
             throw new IllegalStateException("Archetype cache is closed");
         }
@@ -128,6 +164,9 @@ public class ArchetypeCache {
         }
         var future = pending.get(key);
         if (future == null) {
+            if (!allowGeneration.getAsBoolean()) {
+                return CompletableFuture.completedFuture(null);
+            }
             future = new CompletableFuture<>();
             pending.put(key, future);
             var result = future;

@@ -15,6 +15,7 @@
  */
 package com.flowlogix.starter.ui;
 
+import com.flowlogix.starter.ArchetypeCache.WarmupBudget;
 import com.flowlogix.starter.ArchetypeGenerator;
 import com.flowlogix.starter.ArchetypeCache;
 import com.flowlogix.starter.common.DownloadRequest;
@@ -55,6 +56,8 @@ public class ArchetypeCustomizer implements Serializable {
     @Inject
     @Delegate
     ArchetypeCache cache;
+
+    private final WarmupBudget warmupBudget = new WarmupBudget();
 
     private enum BaseType {
         BASE, INFRA, PAYARA, GLASSFISH
@@ -97,7 +100,7 @@ public class ArchetypeCustomizer implements Serializable {
     }
 
     public void warmCache() {
-        cache.warm(getParameters(false));
+        cache.warm(getParameters(false), warmupBudget);
     }
 
     private Parameter[] getParameters(boolean forCurl) {

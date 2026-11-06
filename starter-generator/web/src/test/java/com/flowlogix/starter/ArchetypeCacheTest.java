@@ -123,7 +123,7 @@ class ArchetypeCacheTest {
     }
 
     @Test
-    void failedGenerationsAreNotCached() throws IOException {
+    void failedGenerationCanBeRetriedAndExceptionalFailureIsPropagated() throws IOException {
         Path failed = Files.createDirectory(projects.resolve("failed"));
         when(cache.generator.generateArchetype(any())).thenReturn(new ReturnValue(failed, 1, "Maven failed"));
         doAnswer(invocation -> {
@@ -135,11 +135,21 @@ class ArchetypeCacheTest {
             assertThat(download.output()).isEqualTo("Maven failed");
             assertThat(download.input()).isNull();
         }
-        assertThat(failed).doesNotExist();
+
+        when(cache.generator.generateArchetype(any())).thenAnswer(invocation -> {
+            Path project = Files.createDirectory(projects.resolve("retry"));
+            Files.writeString(project.resolve("pom.xml"), "project");
+            return new ReturnValue(project, 0, "");
+        });
+        try (var download = cache.download(null)) {
+            assertThat(download.status()).isZero();
+        }
+
         when(cache.generator.generateArchetype(any())).thenThrow(new IllegalStateException("broken"));
-        assertThatThrownBy(() -> cache.download(null)).isInstanceOf(CompletionException.class)
+        var differentParameters = new Parameter[] {new Parameter("artifactId", "exception")};
+        assertThatThrownBy(() -> cache.download(differentParameters)).isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
-        verify(cache.generator, times(2)).generateArchetype(any());
+        verify(cache.generator, times(3)).generateArchetype(any());
     }
 
     @Test

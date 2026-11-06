@@ -15,16 +15,23 @@
  */
 package com.flowlogix.starter;
 
-import com.flowlogix.util.ShrinkWrapManipulator;
-import org.eu.ingwar.tools.arquillian.extension.suite.annotations.ArquillianSuiteDeployment;
-import org.jboss.arquillian.container.test.api.Deployment;
-import org.jboss.shrinkwrap.api.spec.WebArchive;
+import jakarta.ejb.Schedule;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
+import jakarta.inject.Inject;
 
-@ArquillianSuiteDeployment
-@SuppressWarnings({"HideUtilityClassConstructor", "unused"})
-class Deployments {
-    @Deployment(testable = false)
-    static WebArchive deploy() {
-        return ShrinkWrapManipulator.createDeployment(WebArchive.class);
+/**
+ * Expires disk ZIPs using a deployment-scoped, nonpersistent EJB timer.
+ */
+@Singleton
+@TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+public class ArchetypeCacheCleanup {
+    @Inject
+    ArchetypeCache cache;
+
+    @Schedule(hour = "*", minute = "*", persistent = false)
+    public void cleanup() {
+        cache.evictExpired();
     }
 }

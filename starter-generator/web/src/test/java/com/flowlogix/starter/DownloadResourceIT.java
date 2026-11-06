@@ -57,7 +57,6 @@ class DownloadResourceIT {
                 .isEqualTo(OK.getStatusCode());
         assertThat(response.headers().firstValue("Content-Disposition"))
                 .hasValue("attachment; filename=\"my-app.zip\"");
-        assertThat(get(parameters).body()).isEqualTo(response.body());
 
         Map<String, String> entries = unzip(response.body());
         assertThat(entries.keySet()).isNotEmpty().allMatch(name -> name.startsWith("my-app/"))

@@ -16,6 +16,7 @@
 package com.flowlogix.starter;
 
 import com.flowlogix.test.AppServerLifecycle;
+import org.eu.ingwar.tools.arquillian.extension.suite.annotations.ArquillianSuiteDeployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.graphene.page.Page;
 import org.jboss.arquillian.test.api.ArquillianResource;
@@ -30,6 +31,7 @@ import static org.jboss.arquillian.graphene.Graphene.guardAjax;
 @RunAsClient
 @Tag("UserInterface")
 @AppServerLifecycle
+@ArquillianSuiteDeployment
 class StarterPageIT {
     @ArquillianResource
     private URL baseURL;

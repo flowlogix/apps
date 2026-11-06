@@ -26,9 +26,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.ws.rs.core.MediaType;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.omnifaces.util.Faces;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
@@ -53,11 +53,8 @@ public class ArchetypeCustomizer implements Serializable {
     private static final long serialVersionUID = 3L;
 
     @Inject
+    @Delegate
     ArchetypeCache cache;
-
-    @Inject
-    @ConfigProperty(name = "com.flowlogix.starter.cache-warmup-delay-ms", defaultValue = "2000")
-    private int cacheWarmupDelay;
 
     private enum BaseType {
         BASE, INFRA, PAYARA, GLASSFISH

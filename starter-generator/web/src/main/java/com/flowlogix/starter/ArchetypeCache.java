@@ -20,9 +20,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import jakarta.enterprise.concurrent.ManagedExecutorService;
-import jakarta.enterprise.concurrent.ManagedScheduledExecutorService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -38,8 +38,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Node-local disk ZIPs indexed by normalized cURL commands.
@@ -57,13 +55,14 @@ public class ArchetypeCache {
     int maxEntries;
     @Resource
     ManagedExecutorService executor;
-    @Resource
-    ManagedScheduledExecutorService scheduler;
 
     Clock clock = Clock.systemUTC();
+    @Getter
+    @Inject
+    @ConfigProperty(name = "com.flowlogix.starter.cache-warmup-delay-ms", defaultValue = "2000")
+    private int cacheWarmupDelay;
     private final Map<String, CachedZip> entries = new LinkedHashMap<>();
     private final Map<String, CompletableFuture<CachedZip>> pending = new HashMap<>();
-    private ScheduledFuture<?> cleanupTask;
     private boolean closed;
 
     public record Download(int status, String output, InputStream input) implements AutoCloseable {
@@ -95,7 +94,6 @@ public class ArchetypeCache {
         if (hours < 1 || maxEntries < 1) {
             throw new IllegalArgumentException("Cache hours and maximum entries must be positive");
         }
-        cleanupTask = scheduler.scheduleAtFixedRate(this::evictExpired, 1, 1, TimeUnit.MINUTES);
     }
 
     public void warm(Parameter[] parameters) {
@@ -216,9 +214,6 @@ public class ArchetypeCache {
     @PreDestroy
     synchronized void close() {
         closed = true;
-        if (cleanupTask != null) {
-            cleanupTask.cancel(false);
-        }
         entries.values().forEach(CachedZip::delete);
         entries.clear();
     }

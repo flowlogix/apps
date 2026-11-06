@@ -10,8 +10,8 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>starter-generator</artifactId>
-    <name>Starter Generator</name>
+    <artifactId>starter-generator-web</artifactId>
+    <name>Starter Generator Web</name>
     <packaging>war</packaging>
 
     <dependencies>

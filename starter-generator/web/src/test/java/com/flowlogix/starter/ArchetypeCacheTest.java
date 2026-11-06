@@ -130,16 +130,48 @@ class ArchetypeCacheTest {
 
     @Test
     void expiresAtConfiguredLifetime() {
-        cache.warm(null);
+        var parameters = new Parameter[] {new Parameter("artifactId", "expiring")};
+        cache.warm(parameters);
         jobs.remove().run();
         when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)).minusSeconds(1));
-        cache.warm(null);
+        cache.warm(parameters);
         assertThat(jobs).isEmpty();
         when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)));
-        cache.warm(null);
+        cache.warm(parameters);
         assertThat(jobs).hasSize(1);
         jobs.remove().run();
         verify(cache.generator, times(2)).generateArchetype(any());
+    }
+
+    @Test
+    void expiredDefaultsStayAvailableUntilRefreshSucceeds() throws IOException {
+        cache.maxEntries = 1;
+        cache.warm(null);
+        jobs.remove().run();
+        when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)));
+        cache.evictExpired();
+        cache.evictExpired();
+        assertThat(jobs).hasSize(1);
+        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+            assertThat(download.input().readAllBytes()).isNotEmpty();
+        }
+        when(cache.generator.generateArchetype(any())).thenThrow(new IllegalStateException("Refresh failed"));
+        jobs.remove().run();
+        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+            assertThat(download.input().readAllBytes()).isNotEmpty();
+        }
+        doAnswer(invocation -> {
+            Path project = Files.createDirectory(projects.resolve("refreshed"));
+            Files.writeString(project.resolve("pom.xml"), "refreshed");
+            return new ReturnValue(project, 0, "");
+        }).when(cache.generator).generateArchetype(any());
+        jobs.remove().run();
+        try (var download = assertInstanceOf(Download.class, cache.download(null));
+             var zip = new ZipInputStream(download.input())) {
+            assertThat(zip.getNextEntry().getName()).isEqualTo("pom.xml");
+            assertThat(new String(zip.readAllBytes())).isEqualTo("refreshed");
+        }
+        assertThat(jobs).isEmpty();
     }
 
     @Test

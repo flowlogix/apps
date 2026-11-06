@@ -56,8 +56,6 @@
 
         <p:focus/>
         <h:form id="starterForm">
-            <p:remoteCommand name="warmArchetypeCache" autoRun="true" process="@this"
-                             action="#{archetype.warmCache}"/>
             <div class="text-center mb-2">
                 <p:commandButton value="Generate Project" ajax="false" onclick="PrimeFaces.monitorDownload(start, stop);"
                                  icon="pi pi-arrow-down" styleClass="download-button">

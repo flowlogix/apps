@@ -77,6 +77,7 @@ public class ArchetypeCache {
     private int cacheWarmupDelay;
     private final SequencedMap<String, CachedZip> entries = new LinkedHashMap<>();
     private final Map<String, CompletableFuture<CachedZip>> pending = new HashMap<>();
+    private final String defaultKey = ArchetypeGenerator.cacheKey(null);
     private boolean closed;
 
     public ArchetypeCache() {
@@ -184,6 +185,11 @@ public class ArchetypeCache {
         if (existing != null) {
             return CompletableFuture.completedFuture(existing);
         }
+        return scheduleGeneration(key, parameters, allowGeneration);
+    }
+
+    private CompletableFuture<CachedZip> scheduleGeneration(String key, Parameter[] parameters,
+                                                            BooleanSupplier allowGeneration) {
         var future = pending.get(key);
         if (future == null) {
             if (!allowGeneration.getAsBoolean()) {
@@ -230,9 +236,13 @@ public class ArchetypeCache {
         }
         if (zip.status == 0) {
             evictExpired();
-            while (entries.size() >= maxEntries) {
+            while (!entries.containsKey(key) && entries.size() >= maxEntries) {
                 entries.firstEntry().getValue().delete();
                 entries.pollFirstEntry();
+            }
+            CachedZip previous = entries.get(key);
+            if (previous != null) {
+                previous.delete();
             }
             entries.put(key, zip);
         }
@@ -269,13 +279,22 @@ public class ArchetypeCache {
     @Synchronized
     void evictExpired() {
         Instant cutoff = clock.instant().minus(Duration.ofHours(hours));
-        var iterator = entries.values().iterator();
+        boolean refreshDefaults = false;
+        var iterator = entries.entrySet().iterator();
         while (iterator.hasNext()) {
-            CachedZip zip = iterator.next();
+            var entry = iterator.next();
+            CachedZip zip = entry.getValue();
             if (!zip.created.isAfter(cutoff)) {
-                zip.delete();
-                iterator.remove();
+                if (entry.getKey().equals(defaultKey)) {
+                    refreshDefaults = true;
+                } else {
+                    zip.delete();
+                    iterator.remove();
+                }
             }
+        }
+        if (refreshDefaults && warmupEnabled && !closed) {
+            scheduleGeneration(defaultKey, null, () -> true);
         }
     }
 

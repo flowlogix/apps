@@ -68,18 +68,13 @@ public class DownloadResource {
                                           message = "Artifact ID can only contain letters, numbers, underscores, and hyphens")
                                  @Size(min = 1, max = 100, message = "Artifact ID must be between 1 and 100 characters")
                                  String artifactId) {
-        var result = cache.download(parameters(artifactId));
-
-        if (result.status() != 0) {
-            result.close();
-            return Response.serverError().type(MediaType.TEXT_PLAIN)
-                    .entity(result.output()).build();
-        }
-
-        StreamingOutput stream = result::write;
-        return Response.ok(stream)
-                .header("Content-Disposition", "attachment; filename=\"%s.zip\"".formatted(artifactId))
-                .build();
+        return switch (cache.download(parameters(artifactId))) {
+            case ArchetypeCache.Result.InvalidRecord invalid -> Response.serverError().type(MediaType.TEXT_PLAIN)
+                    .entity(invalid.output()).build();
+            case ArchetypeCache.Result.Download download -> Response.ok((StreamingOutput) download::write)
+                    .header("Content-Disposition", "attachment; filename=\"%s.zip\"".formatted(artifactId))
+                    .build();
+        };
     }
 
     private Parameter[] parameters(String artifactId) {

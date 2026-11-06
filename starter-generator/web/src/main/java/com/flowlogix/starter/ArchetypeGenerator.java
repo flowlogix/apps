@@ -16,6 +16,7 @@
 package com.flowlogix.starter;
 
 import com.flowlogix.starter.common.DownloadRequest;
+import com.flowlogix.starter.common.ArchetypeMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.NonNull;
@@ -40,6 +41,7 @@ import java.util.stream.Stream;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_GROUP;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULTS;
+import static com.flowlogix.starter.common.StarterParameters.defaultValue;
 import static com.flowlogix.util.Streams.readString;
 
 @Slf4j
@@ -112,8 +114,9 @@ public class ArchetypeGenerator {
     }
 
     static String cacheKey(Parameter[] inputParameters) {
-        return DownloadRequest.curlCommand(DownloadRequest.url("download/",
-                new TreeMap<>(extractParameters(inputParameters, null))), DEFAULT_ARTIFACT);
+        var parameters = new TreeMap<>(extractParameters(inputParameters, null));
+        ArchetypeMetadata.properties().forEach(property -> parameters.remove(property.key(), defaultValue(property)));
+        return DownloadRequest.curlCommand(DownloadRequest.url("download/", parameters), DEFAULT_ARTIFACT);
     }
 
     @SneakyThrows(IOException.class)

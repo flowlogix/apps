@@ -17,6 +17,8 @@ package com.flowlogix.starter;
 
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
+import com.flowlogix.starter.ArchetypeCache.Result.Download;
+import com.flowlogix.starter.ArchetypeCache.Result.InvalidRecord;
 import jakarta.enterprise.concurrent.ManagedExecutorService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,13 +31,13 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CompletionException;
 import java.util.zip.ZipInputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -47,7 +49,8 @@ class ArchetypeCacheTest {
     private static final long CACHE_HOURS = 4;
     @TempDir
     Path projects;
-    private final ArchetypeCache cache = new ArchetypeCache();
+    private final Clock clock = mock(Clock.class);
+    private final ArchetypeCache cache = new ArchetypeCache(clock);
     private final Queue<Runnable> jobs = new ArrayDeque<>();
     private int generated;
 
@@ -56,7 +59,7 @@ class ArchetypeCacheTest {
         cache.hours = CACHE_HOURS;
         cache.maxEntries = 2;
         cache.warmupEnabled = true;
-        cache.clock = Clock.fixed(Instant.EPOCH, ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(Instant.EPOCH);
         cache.generator = mock(ArchetypeGenerator.class);
         cache.executor = mock(ManagedExecutorService.class);
         doAnswer(invocation -> jobs.add(invocation.getArgument(0))).when(cache.executor).execute(any());
@@ -80,7 +83,8 @@ class ArchetypeCacheTest {
         cache.warm(reordered);
         assertThat(jobs).hasSize(1);
         jobs.remove().run();
-        try (var first = cache.download(parameters); var second = cache.download(reordered);
+        try (var first = assertInstanceOf(Download.class, cache.download(parameters));
+             var second = assertInstanceOf(Download.class, cache.download(reordered));
              var zip = new ZipInputStream(first.input())) {
             assertThat(zip.getNextEntry().getName()).isEqualTo("pom.xml");
             assertThat(new String(zip.readAllBytes())).isEqualTo("project");
@@ -91,13 +95,46 @@ class ArchetypeCacheTest {
     }
 
     @Test
+    void pendingDownloadsOpenBeforeEviction() throws IOException {
+        cache.maxEntries = 1;
+        var first = cache.requestDownload(null);
+        var second = cache.requestDownload(null);
+        assertThat(jobs).hasSize(1);
+        assertThat(first).isNotDone();
+        assertThat(second).isNotDone();
+        jobs.remove().run();
+        try (var firstDownload = assertInstanceOf(Download.class, first.join());
+             var secondDownload = assertInstanceOf(Download.class, second.join())) {
+            cache.warm(new Parameter[] {new Parameter("artifactId", "other")});
+            jobs.remove().run();
+            assertThat(firstDownload.input().readAllBytes()).isNotEmpty()
+                    .isEqualTo(secondDownload.input().readAllBytes());
+        }
+        verify(cache.generator, times(2)).generateArchetype(any());
+    }
+
+    @Test
+    void shutdownCompletesDownloadsWhoseGenerationHasNotStarted() {
+        var first = cache.requestDownload(null);
+        var second = cache.requestDownload(null);
+        assertThat(jobs).hasSize(1);
+        cache.close();
+        assertThat(first).isCompletedExceptionally();
+        assertThat(second).isCompletedExceptionally();
+        assertThatThrownBy(first::join).isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(java.util.concurrent.CancellationException.class);
+        jobs.remove().run();
+        assertThat(first).isCompletedExceptionally();
+    }
+
+    @Test
     void expiresAtConfiguredLifetime() {
         cache.warm(null);
         jobs.remove().run();
-        cache.clock = Clock.fixed(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)).minusSeconds(1), ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)).minusSeconds(1));
         cache.warm(null);
         assertThat(jobs).isEmpty();
-        cache.clock = Clock.fixed(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)), ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)));
         cache.warm(null);
         assertThat(jobs).hasSize(1);
         jobs.remove().run();
@@ -109,7 +146,7 @@ class ArchetypeCacheTest {
         cache.maxEntries = 1;
         cache.warm(null);
         jobs.remove().run();
-        try (var download = cache.download(null)) {
+        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
             var other = new Parameter[] {new Parameter("artifactId", "other")};
             cache.warm(other);
             jobs.remove().run();
@@ -131,19 +168,15 @@ class ArchetypeCacheTest {
             ((Runnable) invocation.getArgument(0)).run();
             return null;
         }).when(cache.executor).execute(any());
-        try (var download = cache.download(null)) {
-            assertThat(download.status()).isEqualTo(1);
-            assertThat(download.output()).isEqualTo("Maven failed");
-            assertThat(download.input()).isNull();
-        }
+        assertThat(cache.download(null)).isEqualTo(new InvalidRecord(1, "Maven failed"));
 
         when(cache.generator.generateArchetype(any())).thenAnswer(invocation -> {
             Path project = Files.createDirectory(projects.resolve("retry"));
             Files.writeString(project.resolve("pom.xml"), "project");
             return new ReturnValue(project, 0, "");
         });
-        try (var download = cache.download(null)) {
-            assertThat(download.status()).isZero();
+        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+            assertThat(download.input().readAllBytes()).isNotEmpty();
         }
 
         when(cache.generator.generateArchetype(any())).thenThrow(new IllegalStateException("broken"));
@@ -170,10 +203,10 @@ class ArchetypeCacheTest {
         assertThat(jobs).hasSize(limit - 1);
         cache.warm(next, new ArchetypeCache.WarmupBudget());
         assertThat(jobs).hasSize(limit);
-        cache.clock = Clock.fixed(Instant.EPOCH.plus(Duration.ofMinutes(1)).minusSeconds(1), ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofMinutes(1)).minusSeconds(1));
         cache.warm(new Parameter[] {new Parameter("artifactId", "after-pause")}, budget);
         assertThat(jobs).hasSize(limit);
-        cache.clock = Clock.fixed(Instant.EPOCH.plus(Duration.ofMinutes(1)), ZoneOffset.UTC);
+        when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofMinutes(1)));
         cache.warm(new Parameter[] {new Parameter("artifactId", "after-pause")}, budget);
         assertThat(jobs).hasSize(limit + 1);
         while (!jobs.isEmpty()) {
@@ -182,7 +215,7 @@ class ArchetypeCacheTest {
     }
 
     @Test
-    void disablingWarmupDoesNotPreventExplicitDownloads() {
+    void disablingWarmupDoesNotPreventExplicitDownloads() throws IOException {
         cache.warmupEnabled = false;
         cache.warm(null, new ArchetypeCache.WarmupBudget());
         assertThat(jobs).isEmpty();
@@ -190,8 +223,8 @@ class ArchetypeCacheTest {
             ((Runnable) invocation.getArgument(0)).run();
             return null;
         }).when(cache.executor).execute(any());
-        try (var download = cache.download(null)) {
-            assertThat(download.status()).isZero();
+        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+            assertThat(download.input().readAllBytes()).isNotEmpty();
         }
         verify(cache.generator).generateArchetype(any());
     }
@@ -202,6 +235,10 @@ class ArchetypeCacheTest {
                 .isEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {
                         new Parameter("artifactId", "starter"), new Parameter("version", " "),
                         new Parameter("groupId", "com.example"), new Parameter("baseType", "payara")}))
+                .isEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {
+                        new Parameter("useMavenCache", "true"), new Parameter("useCodeCoverage", "true"),
+                        new Parameter("useArquillianGraphene", "true")}))
+                .isNotEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {new Parameter("useMavenCache", "false")}))
                 .isNotEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {new Parameter("useShiro", "false")}))
                 .isNotEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {new Parameter("archetypeVersion", "154")}));
     }

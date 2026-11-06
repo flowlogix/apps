@@ -15,6 +15,7 @@
  */
 package com.flowlogix.starter.ui;
 
+import com.flowlogix.starter.ArchetypeCache.Result.InvalidRecord;
 import com.flowlogix.starter.ArchetypeCache.WarmupBudget;
 import com.flowlogix.starter.ArchetypeGenerator;
 import com.flowlogix.starter.ArchetypeCache;
@@ -85,18 +86,17 @@ public class ArchetypeCustomizer implements Serializable {
     private boolean useArquillianGraphene = flag("useArquillianGraphene");
 
     public StreamedContent getDownload() {
-        var result = cache.download(getParameters(false));
-        if (result.status() != 0) {
-            result.close();
-            Faces.redirect(Faces.getRequestURL());
-            return null;
-        }
-
-        return DefaultStreamedContent.builder()
-                .name("%s.zip".formatted(artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim()))
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .writer(result::write)
-                .build();
+        return switch (cache.download(getParameters(false))) {
+            case InvalidRecord _ -> {
+                Faces.redirect(Faces.getRequestURL());
+                yield null;
+            }
+            case ArchetypeCache.Result.Download download -> DefaultStreamedContent.builder()
+                    .name("%s.zip".formatted(artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim()))
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .writer(download::write)
+                    .build();
+        };
     }
 
     public void warmCache() {

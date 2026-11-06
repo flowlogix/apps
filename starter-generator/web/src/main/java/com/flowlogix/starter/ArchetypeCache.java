@@ -22,8 +22,12 @@ import jakarta.annotation.Resource;
 import jakarta.enterprise.concurrent.ManagedExecutorService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.io.IOException;
@@ -39,6 +43,8 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.SequencedMap;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 
@@ -47,6 +53,7 @@ import java.util.function.BooleanSupplier;
  */
 @Slf4j
 @ApplicationScoped
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class ArchetypeCache {
     @Inject
     ArchetypeGenerator generator;
@@ -62,14 +69,18 @@ public class ArchetypeCache {
     @Resource
     ManagedExecutorService executor;
 
-    Clock clock = Clock.systemUTC();
+    private final Clock clock;
     @Getter
     @Inject
     @ConfigProperty(name = "com.flowlogix.starter.cache-warmup-delay-ms", defaultValue = "2000")
     private int cacheWarmupDelay;
-    private final Map<String, CachedZip> entries = new LinkedHashMap<>();
+    private final SequencedMap<String, CachedZip> entries = new LinkedHashMap<>();
     private final Map<String, CompletableFuture<CachedZip>> pending = new HashMap<>();
     private boolean closed;
+
+    public ArchetypeCache() {
+        this(Clock.systemUTC());
+    }
 
     /**
      * Per-session budget for speculative generations, independent of cached downloads.
@@ -81,7 +92,8 @@ public class ArchetypeCache {
         private int generations;
         private Instant resumeAt = Instant.MIN;
 
-        private synchronized boolean acquire(Instant now) {
+        @Synchronized
+        private boolean acquire(Instant now) {
             if (generations == GENERATIONS) {
                 if (now.isBefore(resumeAt)) {
                     return false;
@@ -95,21 +107,23 @@ public class ArchetypeCache {
         }
     }
 
-    public record Download(int status, String output, InputStream input) implements AutoCloseable {
-        @SneakyThrows(IOException.class)
-        public void write(OutputStream outputStream) {
-            try (this) {
-                input.transferTo(outputStream);
+    public sealed interface Result {
+        record Download(@NonNull InputStream input) implements Result, AutoCloseable {
+            @SneakyThrows(IOException.class)
+            public void write(OutputStream outputStream) {
+                try (input) {
+                    input.transferTo(outputStream);
+                }
             }
-        }
 
-        @Override
-        @SneakyThrows(IOException.class)
-        public void close() {
-            if (input != null) {
+            @Override
+            @SneakyThrows(IOException.class)
+            public void close() {
                 input.close();
             }
         }
+
+        record InvalidRecord(int status, String output) implements Result { }
     }
 
     private record CachedZip(Path path, int status, String output, Instant created) {
@@ -120,7 +134,7 @@ public class ArchetypeCache {
     }
 
     @PostConstruct
-    void start() {
+    void checkParameters() {
         if (hours < 1 || maxEntries < 1) {
             throw new IllegalArgumentException("Cache hours and maximum entries must be positive");
         }
@@ -132,27 +146,31 @@ public class ArchetypeCache {
 
     public void warm(Parameter[] parameters, WarmupBudget budget) {
         if (warmupEnabled) {
-            request(parameters, () -> budget == null || budget.acquire(clock.instant()));
+            getOrGenerateZip(parameters, () -> budget == null || budget.acquire(clock.instant()));
         }
+    }
+
+    public Result download(Parameter[] parameters) {
+        return requestDownload(parameters).join();
+    }
+
+    @Synchronized
+    CompletableFuture<Result> requestDownload(Parameter[] parameters) {
+        // Register under the same lock used to complete generation and evict ZIPs.
+        return getOrGenerateZip(parameters, () -> true).thenApply(this::openDownload);
     }
 
     @SneakyThrows(IOException.class)
-    public Download download(Parameter[] parameters) {
-        while (true) {
-            CachedZip zip = request(parameters, () -> true).join();
-            synchronized (this) {
-                if (zip.status != 0) {
-                    return new Download(zip.status, zip.output, null);
-                }
-                if (entries.containsValue(zip)) {
-                    // Open before eviction unlinks the ZIP; active streams remain valid on the local filesystem.
-                    return new Download(0, "", Files.newInputStream(zip.path));
-                }
-            }
+    private Result openDownload(CachedZip zip) {
+        if (zip.status != 0) {
+            return new Result.InvalidRecord(zip.status, zip.output);
         }
+        // Open before eviction unlinks the ZIP; active streams remain valid on the local filesystem.
+        return new Result.Download(Files.newInputStream(zip.path));
     }
 
-    private synchronized CompletableFuture<CachedZip> request(Parameter[] parameters, BooleanSupplier allowGeneration) {
+    @Synchronized
+    private CompletableFuture<CachedZip> getOrGenerateZip(Parameter[] parameters, BooleanSupplier allowGeneration) {
         if (closed) {
             throw new IllegalStateException("Archetype cache is closed");
         }
@@ -175,7 +193,6 @@ public class ArchetypeCache {
                 executor.execute(() -> generate(key, snapshot, result));
             } catch (RuntimeException e) {
                 pending.remove(key);
-                log.error("Unable to schedule archetype generation", e);
                 throw e;
             }
         }
@@ -186,23 +203,7 @@ public class ArchetypeCache {
         CachedZip zip = null;
         try {
             zip = generateZip(parameters);
-            synchronized (this) {
-                if (zip.status == 0) {
-                    if (closed) {
-                        zip.delete();
-                    } else {
-                        evictExpired();
-                        while (entries.size() >= maxEntries) {
-                            var oldest = entries.entrySet().iterator();
-                            oldest.next().getValue().delete();
-                            oldest.remove();
-                        }
-                        entries.put(key, zip);
-                    }
-                }
-                pending.remove(key);
-                future.complete(zip);
-            }
+            cacheGenerated(key, zip, future);
         } catch (Exception e) {
             if (zip != null && zip.status == 0) {
                 try {
@@ -211,12 +212,34 @@ public class ArchetypeCache {
                     e.addSuppressed(cleanupFailure);
                 }
             }
-            synchronized (this) {
-                pending.remove(key);
-                future.completeExceptionally(e);
-            }
+            failGeneration(key, future, e);
             log.error("Failed to generate cached archetype ZIP", e);
         }
+    }
+
+    @Synchronized
+    private void cacheGenerated(String key, CachedZip zip, CompletableFuture<CachedZip> future) {
+        if (closed && zip.status == 0) {
+            zip.delete();
+            failGeneration(key, future, new CancellationException("Archetype cache is closed"));
+            return;
+        }
+        if (zip.status == 0) {
+            evictExpired();
+            while (entries.size() >= maxEntries) {
+                entries.firstEntry().getValue().delete();
+                entries.pollFirstEntry();
+            }
+            entries.put(key, zip);
+        }
+        pending.remove(key);
+        future.complete(zip);
+    }
+
+    @Synchronized
+    private void failGeneration(String key, CompletableFuture<CachedZip> future, Exception failure) {
+        pending.remove(key);
+        future.completeExceptionally(failure);
     }
 
     private CachedZip generateZip(Parameter[] parameters) throws IOException {
@@ -239,11 +262,13 @@ public class ArchetypeCache {
         }
     }
 
-    synchronized void evictExpired() {
+    @Synchronized
+    void evictExpired() {
+        Instant cutoff = clock.instant().minus(Duration.ofHours(hours));
         var iterator = entries.values().iterator();
         while (iterator.hasNext()) {
             CachedZip zip = iterator.next();
-            if (!clock.instant().isBefore(zip.created.plus(Duration.ofHours(hours)))) {
+            if (!zip.created.isAfter(cutoff)) {
                 zip.delete();
                 iterator.remove();
             }
@@ -251,8 +276,12 @@ public class ArchetypeCache {
     }
 
     @PreDestroy
-    synchronized void close() {
+    @Synchronized
+    void close() {
         closed = true;
+        pending.values().forEach(future ->
+                future.completeExceptionally(new CancellationException("Archetype cache is closed")));
+        pending.clear();
         entries.values().forEach(CachedZip::delete);
         entries.clear();
     }

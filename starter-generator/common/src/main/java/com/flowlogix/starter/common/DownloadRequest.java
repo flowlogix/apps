@@ -28,8 +28,15 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("HideUtilityClassConstructor")
 public class DownloadRequest {
+    /** Application path of the generator's download endpoint. */
+    public static final String DOWNLOAD_PATH = "download";
     /** Media type of the project archive, for the request to accept. */
     public static final String ARCHIVE_TYPE = "application/octet-stream";
+
+    /** Appends the download path to the generator's base URL. */
+    public static String endpoint(String baseUrl) {
+        return (baseUrl.endsWith("/") ? baseUrl : baseUrl + "/") + DOWNLOAD_PATH + "/";
+    }
 
     /**
      * Builds the request URL. Blank parameters are left out, so the generator applies its own defaults to them.

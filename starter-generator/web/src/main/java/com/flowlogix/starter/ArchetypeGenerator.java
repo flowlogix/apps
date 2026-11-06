@@ -40,6 +40,7 @@ import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_GROUP;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_PACKAGE;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULTS;
 import static com.flowlogix.starter.common.StarterParameters.defaultValue;
 import static com.flowlogix.util.Streams.readString;
@@ -116,7 +117,7 @@ public class ArchetypeGenerator {
     static String cacheKey(Parameter[] inputParameters) {
         var parameters = new TreeMap<>(extractParameters(inputParameters, null));
         ArchetypeMetadata.properties().forEach(property -> parameters.remove(property.key(), defaultValue(property)));
-        return DownloadRequest.curlCommand(DownloadRequest.url("download/", parameters), DEFAULT_ARTIFACT);
+        return DownloadRequest.curlCommand(DownloadRequest.url(DownloadRequest.DOWNLOAD_PATH, parameters), DEFAULT_ARTIFACT);
     }
 
     @SneakyThrows(IOException.class)
@@ -138,7 +139,7 @@ public class ArchetypeGenerator {
         }
         parameters.put("groupId", DEFAULT_GROUP);
         parameters.put("artifactId", DEFAULT_ARTIFACT);
-        parameters.put("package", "%s.%s".formatted(parameters.get("groupId"), parameters.get("artifactId")));
+        parameters.put("package", DEFAULT_PACKAGE);
         // same defaults as the web page, so a bare request and the page produce the same project
         parameters.putAll(new TreeMap<>(DEFAULTS));
 

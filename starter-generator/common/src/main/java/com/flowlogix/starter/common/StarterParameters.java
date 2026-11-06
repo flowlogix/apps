@@ -34,6 +34,8 @@ public class StarterParameters {
     public static final String DEFAULT_GROUP = "com.example";
     /** Artifact the generator uses when none is given. */
     public static final String DEFAULT_ARTIFACT = "starter";
+    /** Package the generator uses when none is given. */
+    public static final String DEFAULT_PACKAGE = DEFAULT_GROUP + "." + DEFAULT_ARTIFACT;
     /**
      * Values the generator uses for parameters that are left out, where it does not follow the archetype's own
      * defaults. They are the web page's initial choices too, so the page, the CLI and a bare request agree.

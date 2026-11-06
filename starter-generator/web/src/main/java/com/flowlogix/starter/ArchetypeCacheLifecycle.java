@@ -15,8 +15,10 @@
  */
 package com.flowlogix.starter;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.ejb.Schedule;
 import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
@@ -24,11 +26,17 @@ import jakarta.inject.Inject;
 /**
  * Expires disk ZIPs using a deployment-scoped, nonpersistent EJB timer.
  */
+@Startup
 @Singleton
 @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
-public class ArchetypeCacheCleanup {
+public class ArchetypeCacheLifecycle {
     @Inject
     ArchetypeCache cache;
+
+    @PostConstruct
+    void warmDefaults() {
+        cache.warm(null);
+    }
 
     @Schedule(hour = "*", minute = "*", persistent = false)
     public void cleanup() {

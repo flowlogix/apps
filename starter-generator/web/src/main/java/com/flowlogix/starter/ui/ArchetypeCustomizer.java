@@ -156,7 +156,7 @@ public class ArchetypeCustomizer implements Serializable {
         var baseURL = Faces.isRequestSecure()
                 ? ShrinkWrapManipulator.toHttpsURL(URI.create(Faces.getRequestBaseURL()).toURL())
                 : Faces.getRequestBaseURL();
-        return DownloadRequest.curlCommand(DownloadRequest.url("%sdownload/".formatted(baseURL), parameters),
+        return DownloadRequest.curlCommand(DownloadRequest.url(DownloadRequest.endpoint(baseURL.toString()), parameters),
                 artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim());
     }
 

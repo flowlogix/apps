@@ -32,6 +32,7 @@ import static com.flowlogix.starter.common.StarterParameters.ARCHETYPE_VERSION;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_GROUP;
+import static com.flowlogix.starter.common.StarterParameters.DEFAULT_PACKAGE;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
@@ -52,7 +53,7 @@ class GeneratorOptions {
         add(ARTIFACT, OptionSpec.builder("-a", "--" + ARTIFACT).defaultValue(DEFAULT_ARTIFACT).paramLabel("<id>")
                 .description("Maven artifactId and project directory name (default: ${DEFAULT-VALUE})"));
         add(PACKAGE, OptionSpec.builder("-p", "--" + PACKAGE).paramLabel("<package>")
-                .description("Base Java package (default: the group)"));
+                .description("Base Java package (default: ${DEFAULT-VALUE})").defaultValue(DEFAULT_PACKAGE));
         add(ARCHETYPE_VERSION, OptionSpec.builder("--" + ARCHETYPE_VERSION).paramLabel("<version>")
                 .description("Version of the starter archetype"));
         ArchetypeMetadata.properties().forEach(property -> add(property.key(), option(property)));

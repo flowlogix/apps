@@ -26,4 +26,37 @@
             <version>1.28.0</version>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <profile>
+            <id>skinny-war</id>
+            <activation>
+                <property>
+                    <name>skinny.war</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-war-plugin</artifactId>
+                        <configuration>
+                            <packagingExcludes>%regex[WEB-INF/lib/(?!starter-common-).*\.jar]</packagingExcludes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-cli</id>
+                                <configuration>
+                                    <includeScope>runtime</includeScope>
+                                    <excludeArtifactIds>postgresql, checker-qual, asm, starter-common</excludeArtifactIds>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

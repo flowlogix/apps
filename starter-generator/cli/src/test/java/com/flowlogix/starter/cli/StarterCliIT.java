@@ -16,6 +16,7 @@
 package com.flowlogix.starter.cli;
 
 import com.flowlogix.starter.common.ArchetypeMetadata;
+import com.flowlogix.starter.common.DownloadRequest;
 import com.flowlogix.starter.common.StarterParameters;
 import io.quarkus.test.junit.main.LaunchResult;
 import io.quarkus.test.junit.main.QuarkusMainLauncher;
@@ -64,7 +65,7 @@ class StarterCliIT {
         var expected = new HashMap<>(StarterParameters.DEFAULTS);
         expected.put(StarterParameters.GROUP, group);
         expected.put(StarterParameters.ARTIFACT, artifact);
-        expected.put(StarterParameters.PACKAGE, group);
+        expected.put(StarterParameters.PACKAGE, StarterParameters.DEFAULT_PACKAGE);
         return expected;
     }
 
@@ -85,6 +86,7 @@ class StarterCliIT {
             expected.put("baseType", "glassfish");
             assertThat(generator.getRequests()).hasSize(1).first().extracting(StarterCliIT::parameters)
                     .asInstanceOf(InstanceOfAssertFactories.MAP).containsExactlyInAnyOrderEntriesOf(expected);
+            assertThat(generator.getRequests().getFirst()).startsWith("/sg/download/;");
             assertThat(dir.resolve("out/app/pom.xml")).hasContent("app/pom.xml");
             assertThat(dir.resolve("out/app/mvnw")).isExecutable();
             assertThat(result.getOutput()).contains("Created ");
@@ -99,7 +101,8 @@ class StarterCliIT {
                 assertThat(help).contains("--" + GeneratorOptions.optionName(property.key())));
         // the help shows the generator's defaults, which are the web page's, not the archetype's own
         assertThat(help).containsPattern("--packagingType=<value>\\s+default: war")
-                .containsPattern("--useShiro\\[=<true\\|false>]\\s+default: true");
+                .containsPattern("--useShiro\\[=<true\\|false>]\\s+default: true")
+                .contains("Base Java package (default: " + StarterParameters.DEFAULT_PACKAGE + ")");
     }
 
     @Test
@@ -109,6 +112,25 @@ class StarterCliIT {
         assertThat(result.exitCode()).isZero();
         assertThat(result.getOutput()).contains("curl -X GET -H \"Accept: application/octet-stream\" -o \"app.zip\" \"");
         assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(expectedParameters("com.acme", "app"));
+    }
+
+    @Test
+    void preservesAnExplicitPackage(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--package", "com.acme.custom", "--dry-run");
+
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        var expected = expectedParameters(StarterParameters.DEFAULT_GROUP, StarterParameters.DEFAULT_ARTIFACT);
+        expected.put(StarterParameters.PACKAGE, "com.acme.custom");
+        assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(expected);
+    }
+
+    @Test
+    void appendsDownloadPathToCustomBaseUrl(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url",
+                "https://example.com/custom", "--dry-run");
+
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(result.getOutput()).contains("\"https://example.com/custom/download/;");
     }
 
     @Test
@@ -144,7 +166,8 @@ class StarterCliIT {
         LaunchResult result = generate(launcher, url, dir);
 
         assertThat(result.exitCode()).isEqualTo(1);
-        assertThat(result.getErrorOutput()).contains("Could not reach the generator at " + url);
+        assertThat(result.getErrorOutput()).contains("Could not reach the generator at "
+            + DownloadRequest.endpoint(url.toString()));
     }
 
     @Test

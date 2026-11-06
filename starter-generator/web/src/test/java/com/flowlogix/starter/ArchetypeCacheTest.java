@@ -77,6 +77,22 @@ class ArchetypeCacheTest {
     }
 
     @Test
+    void startupWarmupSharesGenerationWithDefaultDownloads() throws IOException {
+        var lifecycle = new ArchetypeCacheLifecycle();
+        lifecycle.cache = cache;
+        lifecycle.warmDefaults();
+        assertThat(jobs).hasSize(1);
+        var download = cache.requestDownload(null);
+        assertThat(jobs).hasSize(1);
+        assertThat(download).isNotDone();
+        jobs.remove().run();
+        try (var result = assertInstanceOf(Download.class, download.join())) {
+            assertThat(result.input().readAllBytes()).isNotEmpty();
+        }
+        verify(cache.generator).generateArchetype(any());
+    }
+
+    @Test
     void sharesWarmupAndDownloadsForNormalizedParameters() throws IOException {
         var parameters = new Parameter[] {new Parameter("artifactId", " app "), new Parameter("version", "2")};
         var reordered = new Parameter[] {new Parameter("version", "2"), new Parameter("artifactId", "app")};
@@ -250,6 +266,9 @@ class ArchetypeCacheTest {
     @Test
     void disablingWarmupDoesNotPreventExplicitDownloads() throws IOException {
         cache.warmupEnabled = false;
+        var lifecycle = new ArchetypeCacheLifecycle();
+        lifecycle.cache = cache;
+        lifecycle.warmDefaults();
         cache.warm(null, new ArchetypeCache.WarmupBudget());
         assertThat(jobs).isEmpty();
         doAnswer(invocation -> {

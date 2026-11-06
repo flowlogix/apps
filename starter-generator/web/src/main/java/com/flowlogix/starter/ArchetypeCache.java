@@ -181,6 +181,7 @@ public class ArchetypeCache {
         }
         evictExpired();
         String key = ArchetypeGenerator.cacheKey(parameters);
+        log.info("Requesting cached archetype ZIP for key '{}'", key);
         CachedZip existing = entries.get(key);
         if (existing != null) {
             return CompletableFuture.completedFuture(existing);

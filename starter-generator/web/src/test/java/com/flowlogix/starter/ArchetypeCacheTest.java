@@ -59,6 +59,7 @@ class ArchetypeCacheTest {
         cache.hours = CACHE_HOURS;
         cache.maxEntries = 2;
         cache.warmupEnabled = true;
+        cache.checkParameters();
         when(clock.instant()).thenReturn(Instant.EPOCH);
         cache.generator = mock(ArchetypeGenerator.class);
         cache.executor = mock(ManagedExecutorService.class);

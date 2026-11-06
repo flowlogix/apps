@@ -70,6 +70,7 @@ public class ArchetypeCache {
     ManagedExecutorService executor;
 
     private final Clock clock;
+    private final Path cacheDirectory = Path.of(System.getProperty("java.io.tmpdir"), "starter-cache").toAbsolutePath();
     @Getter
     @Inject
     @ConfigProperty(name = "com.flowlogix.starter.cache-warmup-delay-ms", defaultValue = "2000")
@@ -134,11 +135,13 @@ public class ArchetypeCache {
     }
 
     @PostConstruct
+    @SneakyThrows(IOException.class)
     void checkParameters() {
         if (hours < 1 || maxEntries < 1) {
             throw new IllegalArgumentException("Cache hours and maximum entries must be positive");
         }
-        log.info("Archetype ZIP cache location: {}", Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath());
+        Files.createDirectories(cacheDirectory);
+        log.info("Archetype ZIP cache location: {}", cacheDirectory);
     }
 
     public void warm(Parameter[] parameters) {
@@ -250,7 +253,7 @@ public class ArchetypeCache {
                 log.warn("Archetype generation failed with status {}: {}", result.status(), result.output());
                 return new CachedZip(null, result.status(), result.output(), clock.instant());
             }
-            path = Files.createTempFile("starter-generator-cache-", ".zip");
+            path = Files.createTempFile(cacheDirectory, "starter-generator-cache-", ".zip");
             try (var output = Files.newOutputStream(path)) {
                 ArchetypeGenerator.createZipFile(result.temporaryPath(), output);
             }

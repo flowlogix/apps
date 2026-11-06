@@ -18,11 +18,14 @@ package com.flowlogix.starter.cli;
 import com.flowlogix.starter.common.ArchetypeMetadata;
 import com.flowlogix.starter.common.ArchetypeMetadata.Property;
 import com.flowlogix.starter.common.StarterParameters;
+import com.flowlogix.starter.common.DownloadRequest;
+import com.flowlogix.starter.cli.GeneratorClient.GeneratorException;
 import io.quarkus.picocli.runtime.PicocliCommandLineFactory;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import picocli.CommandLine;
 import picocli.CommandLine.Model.OptionSpec;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -60,17 +63,25 @@ class GeneratorOptions {
 
         CommandLine commandLine = factory.create();
         options.values().forEach(commandLine.getCommandSpec()::addOption);
+        var execution = commandLine.getExecutionStrategy();
+        commandLine.setExecutionStrategy(result -> {
+            if (result.isUsageHelpRequested()) {
+                StarterCli command = commandLine.getCommand();
+                updateHelpDefaults(commandLine, command.generatorUrl);
+            }
+            return execution.execute(result);
+        });
         return commandLine;
     }
 
     /**
-     * The options given on the command line, under the generator's parameter names, completed with the
-     * generator's defaults, so that the project does not depend on the version of the generator called.
+     * The options given on the command line, under the generator's parameter names.
+     * Omitted archetype properties are resolved by the server.
      */
     Map<String, String> parameters() {
         var parameters = new LinkedHashMap<String, String>();
         options.forEach((name, option) -> {
-            String value = option.getValue() != null ? option.getValue() : StarterParameters.DEFAULTS.get(name);
+            String value = option.getValue();
             if (value != null) {
                 parameters.put(name, value);
             }
@@ -87,15 +98,39 @@ class GeneratorOptions {
     }
 
     private static OptionSpec.Builder option(Property property) {
-        // the generator's default, which may differ from the archetype's own
         String defaultValue = StarterParameters.defaultValue(property);
         boolean flag = "true".equals(defaultValue) || "false".equals(defaultValue);
         var option = OptionSpec.builder("--" + optionName(property.key()))
-                .description(Stream.of(defaultValue == null ? null : "default: " + defaultValue,
-                                property.validationRegex() == null ? null : "must match " + property.validationRegex())
-                        .filter(Objects::nonNull).collect(Collectors.joining(", ")));
+                .description(description(property, null));
         return flag ? option.arity("0..1").fallbackValue("true").paramLabel("<true|false>")
                 : option.paramLabel("<value>");
+    }
+
+    private void updateHelpDefaults(CommandLine commandLine, URI generatorUrl) {
+        if (value(ARCHETYPE_VERSION) != null && !"LATEST".equals(value(ARCHETYPE_VERSION))) {
+            commandLine.getErr().println("Warning: defaults omitted for an explicitly selected archetype version.");
+            return;
+        }
+        URI endpoint = URI.create(DownloadRequest.endpoint(generatorUrl.toString()));
+        try {
+            var defaults = new GeneratorClient(endpoint).defaults();
+            ArchetypeMetadata.properties().forEach(property -> {
+                var previous = options.get(property.key());
+                var option = previous.toBuilder()
+                        .description(description(property, defaults.getProperty(property.key()))).build();
+                commandLine.getCommandSpec().remove(previous).addOption(option);
+                options.put(property.key(), option);
+            });
+        } catch (GeneratorException e) {
+            commandLine.getErr().println("Warning: server defaults unavailable at " + endpoint
+                    + DownloadRequest.DEFAULTS_PATH + "; defaults omitted: " + e.getMessage());
+        }
+    }
+
+    private static String description(Property property, String defaultValue) {
+        return Stream.of(defaultValue == null ? null : "default: " + defaultValue,
+                        property.validationRegex() == null ? null : "must match " + property.validationRegex())
+                .filter(Objects::nonNull).collect(Collectors.joining(", "));
     }
 
     private void add(String parameter, OptionSpec.Builder option) {

@@ -34,6 +34,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
@@ -116,8 +117,28 @@ public class ArchetypeGenerator {
 
     static String cacheKey(Parameter[] inputParameters) {
         var parameters = new TreeMap<>(extractParameters(inputParameters, null));
-        ArchetypeMetadata.properties().forEach(property -> parameters.remove(property.key(), defaultValue(property)));
+        var defaults = defaults();
+        ArchetypeMetadata.properties().forEach(property -> parameters.remove(property.key(), defaults.get(property.key())));
         return DownloadRequest.curlCommand(DownloadRequest.url(DownloadRequest.DOWNLOAD_PATH, parameters), DEFAULT_ARTIFACT);
+    }
+
+    public static Map<String, String> defaults() {
+        var defaults = new TreeMap<String, String>();
+        ArchetypeMetadata.properties().stream()
+                .map(property -> new Parameter(property.key(), defaultValue(property)))
+                .filter(parameter -> Objects.nonNull(parameter.value()))
+                .forEach(parameter -> defaults.put(parameter.key(), parameter.value()));
+        defaults.putAll(defaultOverrides());
+        return defaults;
+    }
+
+    private static Map<String, String> defaultOverrides() {
+        var defaults = new TreeMap<>(DEFAULTS);
+        String shiroVersion = System.getProperty("shiroVersion", "").strip();
+        if (!shiroVersion.isBlank()) {
+            defaults.put("shiroVersion", shiroVersion);
+        }
+        return defaults;
     }
 
     @SneakyThrows(IOException.class)
@@ -141,7 +162,7 @@ public class ArchetypeGenerator {
         parameters.put("artifactId", DEFAULT_ARTIFACT);
         parameters.put("package", DEFAULT_PACKAGE);
         // same defaults as the web page, so a bare request and the page produce the same project
-        parameters.putAll(new TreeMap<>(DEFAULTS));
+        parameters.putAll(defaultOverrides());
 
         if (inputParameters != null) {
             for (Parameter parameter : inputParameters) {

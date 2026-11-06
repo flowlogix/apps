@@ -30,7 +30,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.omnifaces.util.Faces;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
@@ -38,7 +37,6 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
@@ -122,18 +120,7 @@ public class ArchetypeCustomizer implements Serializable {
                 new Parameter("useCodeCoverage", Boolean.toString(useCodeCoverage)),
                 new Parameter("useArquillianGraphene", Boolean.toString(useArquillianGraphene))
         };
-        return appendShiroVersion(parameters);
-    }
-
-    private Parameter[] appendShiroVersion(Parameter[] parameters) {
-        var result = parameters;
-        final String shiroVersionParameter = "shiroVersion";
-        String shiroVersion = System.getProperty(shiroVersionParameter, "").strip();
-        if (!StringUtils.isBlank(shiroVersion)) {
-            result = Arrays.copyOf(parameters, parameters.length + 1);
-            result[parameters.length] = new Parameter(shiroVersionParameter, shiroVersion);
-        }
-        return result;
+        return parameters;
     }
 
     private String processPackagingType() {

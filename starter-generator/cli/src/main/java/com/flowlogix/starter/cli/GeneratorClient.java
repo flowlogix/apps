@@ -30,12 +30,15 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serial;
+import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Client of the starter generator's download endpoint: it requests a project and unpacks the archive that comes back.
@@ -80,6 +83,25 @@ class GeneratorClient {
         } catch (IOException e) {
             FileUtils.deleteQuietly(projectDir.toFile());
             throw new GeneratorException("Could not unpack the generated project: " + e.getMessage(), false);
+        }
+    }
+
+    Properties defaults() throws GeneratorException {
+        var generator = QuarkusRestClientBuilder.newBuilder().baseUri(generatorUrl)
+                .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS)
+                .disableDefaultMapper(true).build(GeneratorApi.class);
+        try (Response response = generator.defaults()) {
+            if (response.getStatus() != Status.OK.getStatusCode()) {
+                throw failure(response);
+            }
+            if (response.getMediaType() == null || !response.getMediaType().isCompatible(MediaType.TEXT_PLAIN_TYPE)) {
+                throw new GeneratorException("The generator returned an unexpected defaults content type.", false);
+            }
+            var defaults = new Properties();
+            defaults.load(new StringReader(response.readEntity(String.class)));
+            return defaults;
+        } catch (ProcessingException | IOException | IllegalArgumentException e) {
+            throw new GeneratorException("Could not read server defaults: " + ExceptionUtils.getRootCauseMessage(e), false);
         }
     }
 

@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 public class DownloadRequest {
     /** Application path of the generator's download endpoint. */
     public static final String DOWNLOAD_PATH = "download";
+    /** Relative path exposing the server's effective archetype defaults. */
+    public static final String DEFAULTS_PATH = "defaults";
     /** Media type of the project archive, for the request to accept. */
     public static final String ARCHIVE_TYPE = "application/octet-stream";
 

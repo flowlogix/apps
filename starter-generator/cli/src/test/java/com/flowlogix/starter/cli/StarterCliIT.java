@@ -58,11 +58,10 @@ class StarterCliIT {
     }
 
     /**
-     * The parameters the CLI sends for the given group and artifact and the options left out,
-     * which are the generator's defaults.
+     * The parameters the CLI sends for the given group and artifact, leaving archetype defaults to the server.
      */
     private static Map<String, String> expectedParameters(String group, String artifact) {
-        var expected = new HashMap<>(StarterParameters.DEFAULTS);
+        var expected = new HashMap<String, String>();
         expected.put(StarterParameters.GROUP, group);
         expected.put(StarterParameters.ARTIFACT, artifact);
         expected.put(StarterParameters.PACKAGE, StarterParameters.DEFAULT_PACKAGE);
@@ -81,9 +80,9 @@ class StarterCliIT {
                     "--useShiro");
 
             assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-            // the generator's defaults are sent too, so the project does not depend on the generator's version
             var expected = expectedParameters("com.acme", "app");
             expected.put("baseType", "glassfish");
+            expected.put("useShiro", "true");
             assertThat(generator.getRequests()).hasSize(1).first().extracting(StarterCliIT::parameters)
                     .asInstanceOf(InstanceOfAssertFactories.MAP).containsExactlyInAnyOrderEntriesOf(expected);
             assertThat(generator.getRequests().getFirst()).startsWith("/sg/download/;");
@@ -94,15 +93,50 @@ class StarterCliIT {
     }
 
     @Test
-    void offersEveryArchetypePropertyAsAnOption(QuarkusMainLauncher launcher) {
-        String help = launcher.launch("--help").getOutput();
+    void helpUsesDefaultsFromSelectedServer(QuarkusMainLauncher launcher) throws IOException {
+        byte[] defaults = "packagingType=ear\nuseShiro=false\nshiroVersion=server-shiro\n"
+                .getBytes(StandardCharsets.UTF_8);
+        try (var generator = new GeneratorStub(HTTP_OK, "text/plain", defaults)) {
+            LaunchResult result = launcher.launch("--generator-url", generator.url().toString(), "--help");
+            String help = result.getOutput();
 
-        assertThat(ArchetypeMetadata.properties()).isNotEmpty().allSatisfy(property ->
-                assertThat(help).contains("--" + GeneratorOptions.optionName(property.key())));
-        // the help shows the generator's defaults, which are the web page's, not the archetype's own
-        assertThat(help).containsPattern("--packagingType=<value>\\s+default: war")
-                .containsPattern("--useShiro\\[=<true\\|false>]\\s+default: true")
-                .contains("Base Java package (default: " + StarterParameters.DEFAULT_PACKAGE + ")");
+            assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+            assertThat(ArchetypeMetadata.properties()).isNotEmpty().allSatisfy(property ->
+                    assertThat(help).contains("--" + GeneratorOptions.optionName(property.key())));
+            assertThat(help).containsPattern("--packagingType=<value>\\s+default: ear")
+                    .containsPattern("--useShiro\\[=<true\\|false>]\\s+default: false")
+                    .containsPattern("--shiroVersion=<value>\\s+default: server-shiro")
+                    .contains("Base Java package (default: " + StarterParameters.DEFAULT_PACKAGE + ")")
+                    .doesNotContain("default: war", "default: true",
+                            "default: " + StarterParameters.defaultValue("shiroVersion"));
+            assertThat(generator.getRequests()).containsExactly("/sg/download/defaults");
+        }
+    }
+
+    @Test
+    void helpOmitsUnavailableDefaultsButKeepsOptionsAndValidation(QuarkusMainLauncher launcher) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_INTERNAL_ERROR, "text/plain", new byte[0])) {
+            LaunchResult result = launcher.launch("--help", "--generator-url", generator.url().toString());
+
+            assertThat(result.exitCode()).isZero();
+            assertThat(result.getOutput()).contains("--shiroVersion=<value>", "--useShiro[=<true|false>]",
+                            "must match base|infra|payara|glassfish")
+                    .doesNotContain("default: war", "default: true",
+                            "default: " + StarterParameters.defaultValue("shiroVersion"));
+            assertThat(result.getErrorOutput()).contains("Warning: server defaults unavailable", "defaults omitted");
+        }
+    }
+
+    @Test
+    void helpDoesNotShowLatestDefaultsForAnotherArchetypeVersion(QuarkusMainLauncher launcher) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_OK, "text/plain", new byte[0])) {
+            LaunchResult result = launcher.launch("--help", "--generator-url", generator.url().toString(),
+                    "--archetypeVersion", "157");
+
+            assertThat(result.exitCode()).isZero();
+            assertThat(result.getErrorOutput()).contains("defaults omitted for an explicitly selected archetype version");
+            assertThat(generator.getRequests()).isEmpty();
+        }
     }
 
     @Test

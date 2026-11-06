@@ -15,7 +15,9 @@
  */
 package com.flowlogix.starter.cli;
 
+import com.flowlogix.starter.common.DownloadRequest;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -29,4 +31,9 @@ public interface GeneratorApi {
     @GET
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     Response download(@RestMatrix Map<String, String> parameters);
+
+    @GET
+    @Path(DownloadRequest.DEFAULTS_PATH)
+    @Produces(MediaType.TEXT_PLAIN)
+    Response defaults();
 }

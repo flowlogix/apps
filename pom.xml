@@ -13,13 +13,13 @@
     <parent>
         <groupId>com.flowlogix</groupId>
         <artifactId>payara-pom</artifactId>
-        <version>147</version>
+        <version>148</version>
     </parent>
 
     <properties>
         <checkstyle.suppressionsLocation>${maven.multiModuleProjectDirectory}/src/checkstyle/suppressions.xml</checkstyle.suppressionsLocation>
 
-        <flowlogix.bom.version>54</flowlogix.bom.version>
+        <flowlogix.bom.version>55</flowlogix.bom.version>
         <flowlogix.version>11.7.6</flowlogix.version>
         <depchain.version>135</depchain.version>
         <arquillian.graphene.version>3.0.1.Final</arquillian.graphene.version>

@@ -119,7 +119,7 @@ public class ArchetypeGenerator {
         var parameters = new TreeMap<>(extractParameters(inputParameters, null));
         var defaults = defaults();
         ArchetypeMetadata.properties().forEach(property -> parameters.remove(property.key(), defaults.get(property.key())));
-        return DownloadRequest.curlCommand(DownloadRequest.url(DownloadRequest.DOWNLOAD_PATH, parameters), DEFAULT_ARTIFACT);
+        return DownloadRequest.curlCommand(DownloadRequest.url(DownloadRequest.endpoint(""), parameters), DEFAULT_ARTIFACT);
     }
 
     public static Map<String, String> defaults() {

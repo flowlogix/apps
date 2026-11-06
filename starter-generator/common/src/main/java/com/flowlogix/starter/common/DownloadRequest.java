@@ -28,16 +28,23 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("HideUtilityClassConstructor")
 public class DownloadRequest {
-    /** Application path of the generator's download endpoint. */
+    /** Application path of the generator's API. */
+    public static final String API_PATH = "api";
+    /** Relative path of the generator's download endpoint. */
     public static final String DOWNLOAD_PATH = "download";
     /** Relative path exposing the server's effective archetype defaults. */
     public static final String DEFAULTS_PATH = "defaults";
     /** Media type of the project archive, for the request to accept. */
     public static final String ARCHIVE_TYPE = "application/octet-stream";
 
-    /** Appends the download path to the generator's base URL. */
+    /** Appends the API path to the generator's base URL. */
+    public static String apiEndpoint(String baseUrl) {
+        return (baseUrl.isEmpty() || baseUrl.endsWith("/") ? baseUrl : baseUrl + "/") + API_PATH + "/";
+    }
+
+    /** Appends the download endpoint path to the generator's base URL. */
     public static String endpoint(String baseUrl) {
-        return (baseUrl.endsWith("/") ? baseUrl : baseUrl + "/") + DOWNLOAD_PATH + "/";
+        return apiEndpoint(baseUrl) + DOWNLOAD_PATH + "/";
     }
 
     /**

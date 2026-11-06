@@ -85,7 +85,7 @@ class StarterCliIT {
             expected.put("useShiro", "true");
             assertThat(generator.getRequests()).hasSize(1).first().extracting(StarterCliIT::parameters)
                     .asInstanceOf(InstanceOfAssertFactories.MAP).containsExactlyInAnyOrderEntriesOf(expected);
-            assertThat(generator.getRequests().getFirst()).startsWith("/sg/download/;");
+            assertThat(generator.getRequests().getFirst()).startsWith("/sg/api/download/;");
             assertThat(dir.resolve("out/app/pom.xml")).hasContent("app/pom.xml");
             assertThat(dir.resolve("out/app/mvnw")).isExecutable();
             assertThat(result.getOutput()).contains("Created ");
@@ -109,7 +109,7 @@ class StarterCliIT {
                     .contains("Base Java package (default: " + StarterParameters.DEFAULT_PACKAGE + ")")
                     .doesNotContain("default: war", "default: true",
                             "default: " + StarterParameters.defaultValue("shiroVersion"));
-            assertThat(generator.getRequests()).containsExactly("/sg/download/defaults");
+            assertThat(generator.getRequests()).containsExactly("/sg/api/defaults");
         }
     }
 
@@ -164,7 +164,7 @@ class StarterCliIT {
                 "https://example.com/custom", "--dry-run");
 
         assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        assertThat(result.getOutput()).contains("\"https://example.com/custom/download/;");
+        assertThat(result.getOutput()).contains("\"https://example.com/custom/api/download/;");
     }
 
     @Test
@@ -201,7 +201,7 @@ class StarterCliIT {
 
         assertThat(result.exitCode()).isEqualTo(1);
         assertThat(result.getErrorOutput()).contains("Could not reach the generator at "
-            + DownloadRequest.endpoint(url.toString()));
+            + DownloadRequest.apiEndpoint(url.toString()));
     }
 
     @Test

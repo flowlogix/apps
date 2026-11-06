@@ -18,6 +18,7 @@ package com.flowlogix.starter.api;
 import com.flowlogix.starter.ArchetypeCache;
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import com.flowlogix.starter.common.ArchetypeMetadata;
+import com.flowlogix.starter.common.DownloadRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ import static com.flowlogix.starter.common.StarterParameters.GROUP;
 import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
 @Slf4j
-@Path("/")
+@Path(DownloadRequest.DOWNLOAD_PATH)
 public class DownloadResource {
     // Allowlist of matrix parameters passed to the generator, mapped to generator parameter names
     private static final Map<String, String> ALLOWED_PARAMETERS = allowedParameters();

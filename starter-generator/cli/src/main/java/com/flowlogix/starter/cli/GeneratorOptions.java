@@ -111,7 +111,7 @@ class GeneratorOptions {
             commandLine.getErr().println("Warning: defaults omitted for an explicitly selected archetype version.");
             return;
         }
-        URI endpoint = URI.create(DownloadRequest.endpoint(generatorUrl.toString()));
+        URI endpoint = URI.create(DownloadRequest.apiEndpoint(generatorUrl.toString()));
         try {
             var defaults = new GeneratorClient(endpoint).defaults();
             ArchetypeMetadata.properties().forEach(property -> {

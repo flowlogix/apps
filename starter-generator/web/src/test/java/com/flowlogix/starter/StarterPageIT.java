@@ -65,7 +65,7 @@ class StarterPageIT {
         assertThat(page.textInputs()).allSatisfy(input -> assertThat(input.getDomProperty("value")).isEmpty());
         assertThat(page.getOtherPackagingType()).isEmpty();
         assertThat(page.curlCommand())
-                .startsWith("curl -X GET -H \"Accept: application/octet-stream\" -o \"starter.zip\" \"%sdownload/;"
+                .startsWith("curl -X GET -H \"Accept: application/octet-stream\" -o \"starter.zip\" \"%sapi/download/;"
                         .formatted(baseURL))
                 .contains("baseType=payara;packagingType=war;")
                 .contains(FEATURES.stream().map(feature -> feature + "=true").toList())
@@ -89,7 +89,7 @@ class StarterPageIT {
         page.updateCommands();
 
         assertThat(page.curlCommand()).contains("-o \"myapp.zip\"",
-                "download/;group=com.acme;artifact=myapp;projectName=My%20App;package=com.acme.myapp;",
+                "api/download/;group=com.acme;artifact=myapp;projectName=My%20App;package=com.acme.myapp;",
                 ";version=2.0;archetypeVersion=154;");
         assertThat(page.mavenCommand()).contains("-DarchetypeVersion=\"154\"", "-DgroupId=\"com.acme\"",
                 "-DartifactId=\"myapp\"", "-DprojectName=\"My App\"", "-Dpackage=\"com.acme.myapp\"",

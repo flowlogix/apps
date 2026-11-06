@@ -93,7 +93,8 @@ public class StarterCli implements Callable<Integer> {
         spec.commandLine().getOut().printf("Generating %s through %s, this takes a few seconds...%n",
                 projectDir, generatorUrl.getHost());
         try {
-            new GeneratorClient(downloadUrl).generate(parameters, projectDir);
+            new GeneratorClient(URI.create(DownloadRequest.apiEndpoint(generatorUrl.toString())))
+                    .generate(parameters, projectDir);
         } catch (GeneratorException e) {
             spec.commandLine().getErr().println(e.getMessage());
             // 2 only for a rejection, so that it keeps meaning invalid input

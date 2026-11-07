@@ -50,7 +50,7 @@ public class DownloadRequest {
          * Describes a property of the archetype, given the value the generator uses when it is left out.
          */
         public static ParameterDescriptor of(Property property, String defaultValue) {
-            boolean flag = Stream.of(Boolean.TRUE, Boolean.FALSE).anyMatch(value -> value.toString().equals(defaultValue));
+            boolean flag = Stream.of(Boolean.TRUE, Boolean.FALSE).map(Object::toString).anyMatch(defaultValue::equals);
             return new ParameterDescriptor(property.key(), defaultValue, property.validationRegex(), flag);
         }
     }

@@ -128,9 +128,11 @@ public class StarterResource {
     private static Map<String, Rule> rules() {
         var rules = new HashMap<String, Rule>();
         ArchetypeMetadata.properties().stream().filter(property -> property.validationRegex() != null)
-                .forEach(property -> rules.put(property.key(), new Rule(value -> value.matches(property.validationRegex()),
+                .forEach(property -> rules.put(property.key(), new Rule(
+                        java.util.regex.Pattern.compile(property.validationRegex()).asMatchPredicate(),
                         "must match " + property.validationRegex())));
-        rules.put(GROUP, new Rule(value -> value.matches("[A-Za-z0-9_.-]+"), "use only letters, digits, '.', '-' and '_'"));
+        rules.put(GROUP, new Rule(java.util.regex.Pattern.compile("[A-Za-z0-9_.-]+").asMatchPredicate(),
+                "use only letters, digits, '.', '-' and '_'"));
         rules.put(PACKAGE, new Rule(SourceVersion::isName, "not a valid Java package name"));
         return Map.copyOf(rules);
     }

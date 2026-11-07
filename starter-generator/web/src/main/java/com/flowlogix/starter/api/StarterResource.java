@@ -16,9 +16,11 @@
 package com.flowlogix.starter.api;
 
 import com.flowlogix.starter.ArchetypeCache;
+import com.flowlogix.starter.ArchetypeGenerator;
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import com.flowlogix.starter.common.ArchetypeMetadata;
 import com.flowlogix.starter.common.DownloadRequest;
+import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,9 +51,13 @@ import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
+/**
+ * Generates projects, and describes the archetype parameters with their effective defaults,
+ * so that clients can offer whatever this server version supports.
+ */
 @Slf4j
-@Path(DownloadRequest.DOWNLOAD_PATH)
-public class DownloadResource {
+@Path("/")
+public class StarterResource {
     // Allowlist of matrix parameters passed to the generator, mapped to generator parameter names
     private static final Map<String, String> ALLOWED_PARAMETERS = allowedParameters();
     // Values the archetype would accept but that would produce a broken project
@@ -63,6 +69,17 @@ public class DownloadResource {
     UriInfo uriInfo;
 
     @GET
+    @Path(DownloadRequest.PARAMETERS_PATH)
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<ParameterDescriptor> parameters() {
+        var defaults = ArchetypeGenerator.defaults();
+        return ArchetypeMetadata.properties().stream()
+                .map(property -> ParameterDescriptor.of(property, defaults.get(property.key())))
+                .toList();
+    }
+
+    @GET
+    @Path(DownloadRequest.DOWNLOAD_PATH)
     @Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN})
     public Response downloadFile(@MatrixParam(ARTIFACT) @DefaultValue(DEFAULT_ARTIFACT)
                                  @Pattern(regexp = "^[a-zA-Z0-9_-]+$",

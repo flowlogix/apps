@@ -16,7 +16,7 @@
 package com.flowlogix.starter;
 
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
-import com.flowlogix.starter.api.ParametersResource;
+import com.flowlogix.starter.api.StarterResource;
 import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import com.flowlogix.starter.common.StarterParameters;
 import org.junit.jupiter.api.AfterEach;
@@ -41,11 +41,11 @@ class ArchetypeGeneratorTest {
     @Test
     void serverShiroDefaultIsSharedByMetadataGenerationAndCacheKeys() {
         System.setProperty("shiroVersion", " server-shiro ");
-        var defaults = new ParametersResource().parameters().stream()
+        var defaults = new StarterResource().parameters().stream()
                 .filter(parameter -> parameter.defaultValue() != null)
                 .collect(Collectors.toMap(ParameterDescriptor::key, ParameterDescriptor::defaultValue));
 
-        assertThat(new ParametersResource().parameters())
+        assertThat(new StarterResource().parameters())
                 .anySatisfy(parameter -> assertThat(parameter).extracting("key", "flag").containsExactly("useShiro", true))
                 .anySatisfy(parameter -> assertThat(parameter).extracting("key", "flag").containsExactly("baseType", false));
         assertThat(defaults).containsEntry("shiroVersion", "server-shiro")

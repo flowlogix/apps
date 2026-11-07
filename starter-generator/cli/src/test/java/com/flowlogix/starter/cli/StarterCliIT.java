@@ -21,6 +21,7 @@ import com.flowlogix.starter.common.StarterParameters;
 import io.quarkus.test.junit.main.LaunchResult;
 import io.quarkus.test.junit.main.QuarkusMainLauncher;
 import io.quarkus.test.junit.main.QuarkusMainTest;
+import jakarta.ws.rs.core.MediaType;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -42,8 +43,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @QuarkusMainTest
 class StarterCliIT {
-    private static final String ARCHIVE_TYPE = "application/octet-stream";
-
     /**
      * The matrix parameters of a request, from its path or from a curl command, by name: what the generator
      * sees, independent of the parameters' order and of the generator's address.
@@ -75,7 +74,8 @@ class StarterCliIT {
 
     @Test
     void createsTheProjectFromTheOptionsGiven(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, GeneratorStub.archive("app/pom.xml", "app/mvnw"))) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
+                GeneratorStub.archive("app/pom.xml", "app/mvnw"))) {
             LaunchResult result = generate(launcher, generator.url(), dir.resolve("out"), "--baseType", "glassfish",
                     "--useShiro");
 
@@ -144,7 +144,7 @@ class StarterCliIT {
         LaunchResult result = launcher.launch("-g", "com.acme", "-a", "app", "-o", dir.toString(), "--dry-run");
 
         assertThat(result.exitCode()).isZero();
-        assertThat(result.getOutput()).contains("curl -X GET -H \"Accept: application/octet-stream\" -o \"app.zip\" \"");
+        assertThat(result.getOutput()).contains("curl -o \"app.zip\" \"");
         assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(expectedParameters("com.acme", "app"));
     }
 
@@ -194,7 +194,7 @@ class StarterCliIT {
     @Test
     void failsWhenTheGeneratorCannotBeReached(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
         URI url;
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, new byte[0])) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM, new byte[0])) {
             url = generator.url();
         }
         LaunchResult result = generate(launcher, url, dir);
@@ -207,7 +207,8 @@ class StarterCliIT {
     @Test
     void refusesAnExistingProjectDirectory(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
         Files.createDirectory(dir.resolve("app"));
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, GeneratorStub.archive("app/pom.xml"))) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
+                GeneratorStub.archive("app/pom.xml"))) {
             LaunchResult result = generate(launcher, generator.url(), dir);
 
             assertThat(result.exitCode()).isEqualTo(1);
@@ -219,7 +220,7 @@ class StarterCliIT {
     @Test
     void refusesAnEntryOutsideTheOutputDirectory(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
         byte[] archive = GeneratorStub.archive("app/pom.xml", "../escaped.txt");
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, archive)) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM, archive)) {
             LaunchResult result = generate(launcher, generator.url(), dir.resolve("out"));
 
             assertThat(result.exitCode()).isEqualTo(1);

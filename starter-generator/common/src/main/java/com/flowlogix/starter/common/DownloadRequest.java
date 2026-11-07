@@ -34,8 +34,6 @@ public class DownloadRequest {
     public static final String DOWNLOAD_PATH = "download";
     /** Relative path exposing the server's effective archetype defaults. */
     public static final String DEFAULTS_PATH = "defaults";
-    /** Media type of the project archive, for the request to accept. */
-    public static final String ARCHIVE_TYPE = "application/octet-stream";
 
     /** Appends the API path to the generator's base URL. */
     public static String apiEndpoint(String baseUrl) {
@@ -61,7 +59,7 @@ public class DownloadRequest {
      * The request as a curl command, which saves the archive under the artifact id.
      */
     public static String curlCommand(String url, String artifactId) {
-        return "curl -X GET -H \"Accept: %s\" -o \"%s.zip\" \"%s\"".formatted(ARCHIVE_TYPE, artifactId, url);
+        return "curl -o \"%s.zip\" \"%s\"".formatted(artifactId, url);
     }
 
     /** Percent-encodes a matrix parameter value; in a path, '+' would not mean a space. */

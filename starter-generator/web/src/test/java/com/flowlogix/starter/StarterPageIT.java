@@ -65,8 +65,7 @@ class StarterPageIT {
         assertThat(page.textInputs()).allSatisfy(input -> assertThat(input.getDomProperty("value")).isEmpty());
         assertThat(page.getOtherPackagingType()).isEmpty();
         assertThat(page.curlCommand())
-                .startsWith("curl -X GET -H \"Accept: application/octet-stream\" -o \"starter.zip\" \"%sapi/download/;"
-                        .formatted(baseURL))
+                .startsWith("curl -o \"starter.zip\" \"%sapi/download/;".formatted(baseURL))
                 .contains("baseType=payara;packagingType=war;")
                 .contains(FEATURES.stream().map(feature -> feature + "=true").toList())
                 .doesNotContain("group=", "artifact=", "projectName=", "package=");

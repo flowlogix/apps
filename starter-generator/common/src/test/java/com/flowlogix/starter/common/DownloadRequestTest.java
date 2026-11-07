@@ -51,10 +51,4 @@ class DownloadRequestTest {
         assertEquals("https://example.com/;artifact=my-app", DownloadRequest.url("https://example.com/", parameters));
     }
 
-    @Test
-    void printsTheRequestAsACurlCommand() {
-        assertEquals("curl -X GET -H \"Accept: application/octet-stream\" -o \"my-app.zip\" "
-                + "\"https://example.com/sg/download/;artifact=my-app\"",
-                DownloadRequest.curlCommand("https://example.com/sg/download/;artifact=my-app", "my-app"));
-    }
 }

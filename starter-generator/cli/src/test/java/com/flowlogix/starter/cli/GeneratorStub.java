@@ -51,7 +51,7 @@ class GeneratorStub implements AutoCloseable {
     }
 
     URI url() {
-        return URI.create("http://localhost:%d/sg/download/".formatted(server.getAddress().getPort()));
+        return URI.create("http://localhost:%d/sg/".formatted(server.getAddress().getPort()));
     }
 
     @Override

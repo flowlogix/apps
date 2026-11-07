@@ -25,7 +25,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>starter-generator</artifactId>
+            <artifactId>starter-generator-web</artifactId>
             <version>${project.version}</version>
             <type>war</type>
         </dependency>
@@ -50,7 +50,7 @@
                         </webModule>
                         <webModule>
                             <groupId>${project.groupId}</groupId>
-                            <artifactId>starter-generator</artifactId>
+                            <artifactId>starter-generator-web</artifactId>
                             <contextRoot>/sg</contextRoot>
                         </webModule>
                         <webModule>

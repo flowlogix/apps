@@ -15,6 +15,7 @@
  */
 package com.flowlogix.starter;
 
+import com.flowlogix.starter.common.ArchetypeMetadata;
 import lombok.Getter;
 import org.jboss.arquillian.drone.api.annotation.Drone;
 import org.openqa.selenium.By;
@@ -33,8 +34,9 @@ import static org.jboss.arquillian.graphene.Graphene.waitGui;
  */
 @Getter
 public class StarterPage {
-    static final List<String> FEATURES = List.of("useShiro", "useAgenticAI", "useOmniFaces", "usePrimeFaces",
-            "useLazyModel", "useMavenCache", "useCodeCoverage", "useArquillianGraphene");
+    static final List<String> FEATURES = ArchetypeMetadata.properties().stream()
+            .filter(property -> property.key().startsWith("use"))
+            .map(ArchetypeMetadata.Property::key).toList();
 
     @Drone
     private WebDriver webDriver;

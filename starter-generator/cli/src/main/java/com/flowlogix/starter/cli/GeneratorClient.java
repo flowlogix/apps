@@ -15,8 +15,11 @@
  */
 package com.flowlogix.starter.cli;
 
+import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
+import jakarta.json.bind.JsonbException;
 import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
@@ -34,8 +37,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Client of the starter generator's download endpoint: it requests a project and unpacks the archive that comes back.
@@ -80,6 +85,23 @@ class GeneratorClient {
         } catch (IOException e) {
             FileUtils.deleteQuietly(projectDir.toFile());
             throw new GeneratorException("Could not unpack the generated project: " + e.getMessage(), false);
+        }
+    }
+
+    /**
+     * The archetype parameters the generator accepts, with its effective defaults.
+     */
+    List<ParameterDescriptor> parameters() throws GeneratorException {
+        var generator = QuarkusRestClientBuilder.newBuilder().baseUri(generatorUrl)
+                .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS)
+                .disableDefaultMapper(true).build(GeneratorApi.class);
+        try (Response response = generator.parameters()) {
+            if (response.getStatus() != Status.OK.getStatusCode()) {
+                throw failure(response);
+            }
+            return response.readEntity(new GenericType<List<ParameterDescriptor>>() { });
+        } catch (ProcessingException | JsonbException e) {
+            throw new GeneratorException("Could not read server parameters: " + ExceptionUtils.getRootCauseMessage(e), false);
         }
     }
 

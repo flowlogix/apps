@@ -15,10 +15,11 @@
  */
 package com.flowlogix.starter.api;
 
+import com.flowlogix.starter.common.DownloadRequest;
 import jakarta.ws.rs.ApplicationPath;
 import jakarta.ws.rs.core.Application;
 
-@ApplicationPath("/download")
+@ApplicationPath(DownloadRequest.API_PATH)
 public class RestConfiguration extends Application {
 
 }

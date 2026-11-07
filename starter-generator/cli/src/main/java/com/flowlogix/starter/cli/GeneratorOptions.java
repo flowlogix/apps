@@ -16,7 +16,7 @@
 package com.flowlogix.starter.cli;
 
 import com.flowlogix.starter.common.ArchetypeMetadata;
-import com.flowlogix.starter.common.ArchetypeMetadata.Property;
+import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import com.flowlogix.starter.common.StarterParameters;
 import com.flowlogix.starter.common.DownloadRequest;
 import com.flowlogix.starter.cli.GeneratorClient.GeneratorException;
@@ -24,9 +24,12 @@ import io.quarkus.picocli.runtime.PicocliCommandLineFactory;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import picocli.CommandLine;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Model.OptionSpec;
+import picocli.CommandLine.ParseResult;
 import java.net.URI;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -59,18 +62,16 @@ class GeneratorOptions {
                 .description("Base Java package (default: ${DEFAULT-VALUE})").defaultValue(DEFAULT_PACKAGE));
         add(ARCHETYPE_VERSION, OptionSpec.builder("--" + ARCHETYPE_VERSION).paramLabel("<version>")
                 .description("Version of the starter archetype"));
-        ArchetypeMetadata.properties().forEach(property -> add(property.key(), option(property)));
+        ArchetypeMetadata.properties().forEach(property -> options.put(property.key(),
+                option(ParameterDescriptor.of(property, StarterParameters.defaultValue(property)), null).build()));
 
         CommandLine commandLine = factory.create();
+        commandLine.setOptionsCaseInsensitive(true);
         options.values().forEach(commandLine.getCommandSpec()::addOption);
         var execution = commandLine.getExecutionStrategy();
-        commandLine.setExecutionStrategy(result -> {
-            if (result.isUsageHelpRequested()) {
-                StarterCli command = commandLine.getCommand();
-                updateHelpDefaults(commandLine, command.generatorUrl);
-            }
-            return execution.execute(result);
-        });
+        // options the server added since this build are not known yet, see withServerParameters
+        commandLine.setUnmatchedArgumentsAllowed(true);
+        commandLine.setExecutionStrategy(result -> execution.execute(withServerParameters(commandLine, result)));
         return commandLine;
     }
 
@@ -81,7 +82,7 @@ class GeneratorOptions {
     Map<String, String> parameters() {
         var parameters = new LinkedHashMap<String, String>();
         options.forEach((name, option) -> {
-            String value = option.getValue();
+            String value = Objects.toString(option.getValue(), null);
             if (value != null) {
                 parameters.put(name, value);
             }
@@ -90,46 +91,64 @@ class GeneratorOptions {
     }
 
     String value(String parameter) {
-        return options.get(parameter).getValue();
+        return Objects.toString(options.get(parameter).getValue(), null);
     }
 
     static String optionName(String property) {
         return RENAMED.getOrDefault(property, property);
     }
 
-    private static OptionSpec.Builder option(Property property) {
-        String defaultValue = StarterParameters.defaultValue(property);
-        boolean flag = "true".equals(defaultValue) || "false".equals(defaultValue);
-        var option = OptionSpec.builder("--" + optionName(property.key()))
-                .description(description(property, null));
-        return flag ? option.arity("0..1").fallbackValue("true").paramLabel("<true|false>")
-                : option.paramLabel("<value>");
+    private static OptionSpec.Builder option(ParameterDescriptor parameter, String shownDefault) {
+        var option = OptionSpec.builder("--" + optionName(parameter.key()))
+                .type(parameter.flag() ? Boolean.class : String.class).description(description(parameter, shownDefault));
+        return parameter.flag() ? option.arity("0..1").fallbackValue(Boolean.TRUE.toString())
+                .paramLabel("<true|false>") : option.paramLabel("<value>");
     }
 
-    private void updateHelpDefaults(CommandLine commandLine, URI generatorUrl) {
-        if (value(ARCHETYPE_VERSION) != null && !"LATEST".equals(value(ARCHETYPE_VERSION))) {
+    /**
+     * Offers the parameters this version of the server supports, which can differ from the ones built into the CLI.
+     * They are needed to show the server's defaults in the help, and to recognize options this CLI does not know.
+     */
+    private ParseResult withServerParameters(CommandLine commandLine, ParseResult result) {
+        boolean help = result.isUsageHelpRequested();
+        if (!help && result.unmatched().isEmpty()) {
+            return result;
+        }
+        if (help && value(ARCHETYPE_VERSION) != null && !"LATEST".equals(value(ARCHETYPE_VERSION))) {
             commandLine.getErr().println("Warning: defaults omitted for an explicitly selected archetype version.");
-            return;
+            return result;
         }
-        URI endpoint = URI.create(DownloadRequest.apiEndpoint(generatorUrl.toString()));
+        StarterCli command = commandLine.getCommand();
+        URI endpoint = URI.create(DownloadRequest.apiEndpoint(command.generatorUrl.toString()));
         try {
-            var defaults = new GeneratorClient(endpoint).defaults();
-            ArchetypeMetadata.properties().forEach(property -> {
-                var previous = options.get(property.key());
-                var option = previous.toBuilder()
-                        .description(description(property, defaults.getProperty(property.key()))).build();
-                commandLine.getCommandSpec().remove(previous).addOption(option);
-                options.put(property.key(), option);
-            });
+            addServerParameters(commandLine.getCommandSpec(), new GeneratorClient(endpoint).parameters());
         } catch (GeneratorException e) {
-            commandLine.getErr().println("Warning: server defaults unavailable at " + endpoint
-                    + DownloadRequest.DEFAULTS_PATH + "; defaults omitted: " + e.getMessage());
+            commandLine.getErr().println("Warning: server parameters unavailable at " + endpoint
+                    + DownloadRequest.PARAMETERS_PATH + "; using the options built into this version: " + e.getMessage());
+        }
+        if (help) {
+            return result;
+        }
+        // whatever is still unknown now is a mistake
+        commandLine.setUnmatchedArgumentsAllowed(false);
+        return commandLine.parseArgs(result.originalArgs().toArray(String[]::new));
+    }
+
+    private void addServerParameters(CommandSpec spec, List<ParameterDescriptor> parameters) {
+        for (ParameterDescriptor parameter : parameters) {
+            var previous = options.get(parameter.key());
+            var option = option(parameter, parameter.defaultValue()).build();
+            if (previous != null) {
+                spec.remove(previous);
+            }
+            spec.addOption(option);
+            options.put(parameter.key(), option);
         }
     }
 
-    private static String description(Property property, String defaultValue) {
+    private static String description(ParameterDescriptor parameter, String defaultValue) {
         return Stream.of(defaultValue == null ? null : "default: " + defaultValue,
-                        property.validationRegex() == null ? null : "must match " + property.validationRegex())
+                        parameter.validationRegex() == null ? null : "must match " + parameter.validationRegex())
                 .filter(Objects::nonNull).collect(Collectors.joining(", "));
     }
 

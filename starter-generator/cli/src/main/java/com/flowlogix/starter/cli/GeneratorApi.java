@@ -34,7 +34,7 @@ public interface GeneratorApi {
     Response download(@RestMatrix Map<String, String> parameters);
 
     @GET
-    @Path(DownloadRequest.DEFAULTS_PATH)
-    @Produces(MediaType.TEXT_PLAIN)
-    Response defaults();
+    @Path(DownloadRequest.PARAMETERS_PATH)
+    @Produces(MediaType.APPLICATION_JSON)
+    Response parameters();
 }

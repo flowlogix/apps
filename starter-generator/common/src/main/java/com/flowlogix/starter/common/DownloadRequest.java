@@ -15,12 +15,14 @@
  */
 package com.flowlogix.starter.common;
 
+import com.flowlogix.starter.common.ArchetypeMetadata.Property;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A request to the generator's download endpoint, which takes its parameters as matrix parameters of the path.
@@ -32,8 +34,26 @@ public class DownloadRequest {
     public static final String API_PATH = "api";
     /** Relative path of the generator's download endpoint. */
     public static final String DOWNLOAD_PATH = "download";
-    /** Relative path exposing the server's effective archetype defaults. */
-    public static final String DEFAULTS_PATH = "defaults";
+    /** Relative path listing the archetype parameters the server accepts, as JSON, with their effective defaults. */
+    public static final String PARAMETERS_PATH = "parameters";
+
+    /**
+     * A parameter the generator accepts, as the parameters endpoint describes it.
+     *
+     * @param key name of the parameter
+     * @param defaultValue value the generator uses when none is given, or {@code null}
+     * @param validationRegex pattern a given value has to match, or {@code null}
+     * @param flag whether the parameter is a true or false switch
+     */
+    public record ParameterDescriptor(String key, String defaultValue, String validationRegex, boolean flag) {
+        /**
+         * Describes a property of the archetype, given the value the generator uses when it is left out.
+         */
+        public static ParameterDescriptor of(Property property, String defaultValue) {
+            boolean flag = Stream.of(Boolean.TRUE, Boolean.FALSE).anyMatch(value -> value.toString().equals(defaultValue));
+            return new ParameterDescriptor(property.key(), defaultValue, property.validationRegex(), flag);
+        }
+    }
 
     /** Appends the API path to the generator's base URL. */
     public static String apiEndpoint(String baseUrl) {

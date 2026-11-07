@@ -16,14 +16,13 @@
 package com.flowlogix.starter;
 
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
-import com.flowlogix.starter.api.DefaultsResource;
+import com.flowlogix.starter.api.ParametersResource;
+import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import com.flowlogix.starter.common.StarterParameters;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.Properties;
+import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Isolated
@@ -40,13 +39,17 @@ class ArchetypeGeneratorTest {
     }
 
     @Test
-    void serverShiroDefaultIsSharedByMetadataGenerationAndCacheKeys() throws IOException {
+    void serverShiroDefaultIsSharedByMetadataGenerationAndCacheKeys() {
         System.setProperty("shiroVersion", " server-shiro ");
-        var defaults = new Properties();
-        defaults.load(new StringReader(new DefaultsResource().defaults()));
+        var defaults = new ParametersResource().parameters().stream()
+                .filter(parameter -> parameter.defaultValue() != null)
+                .collect(Collectors.toMap(ParameterDescriptor::key, ParameterDescriptor::defaultValue));
 
-        assertThat(defaults.getProperty("shiroVersion")).isEqualTo("server-shiro");
-        assertThat(defaults.getProperty("packagingType")).isEqualTo(StarterParameters.defaultValue("packagingType"));
+        assertThat(new ParametersResource().parameters())
+                .anySatisfy(parameter -> assertThat(parameter).extracting("key", "flag").containsExactly("useShiro", true))
+                .anySatisfy(parameter -> assertThat(parameter).extracting("key", "flag").containsExactly("baseType", false));
+        assertThat(defaults).containsEntry("shiroVersion", "server-shiro")
+                .containsEntry("packagingType", StarterParameters.defaultValue("packagingType"));
         assertThat(ArchetypeGenerator.generateMavenCommandLine(null, null))
                 .contains("-DshiroVersion=\"server-shiro\"");
         var explicit = new Parameter[] {new Parameter("shiroVersion", "custom-shiro")};

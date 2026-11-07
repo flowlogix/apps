@@ -15,8 +15,11 @@
  */
 package com.flowlogix.starter.cli;
 
+import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
+import jakarta.json.bind.JsonbException;
 import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
@@ -30,13 +33,12 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serial;
-import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -86,22 +88,20 @@ class GeneratorClient {
         }
     }
 
-    Properties defaults() throws GeneratorException {
+    /**
+     * The archetype parameters the generator accepts, with its effective defaults.
+     */
+    List<ParameterDescriptor> parameters() throws GeneratorException {
         var generator = QuarkusRestClientBuilder.newBuilder().baseUri(generatorUrl)
                 .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS)
                 .disableDefaultMapper(true).build(GeneratorApi.class);
-        try (Response response = generator.defaults()) {
+        try (Response response = generator.parameters()) {
             if (response.getStatus() != Status.OK.getStatusCode()) {
                 throw failure(response);
             }
-            if (response.getMediaType() == null || !response.getMediaType().isCompatible(MediaType.TEXT_PLAIN_TYPE)) {
-                throw new GeneratorException("The generator returned an unexpected defaults content type.", false);
-            }
-            var defaults = new Properties();
-            defaults.load(new StringReader(response.readEntity(String.class)));
-            return defaults;
-        } catch (ProcessingException | IOException | IllegalArgumentException e) {
-            throw new GeneratorException("Could not read server defaults: " + ExceptionUtils.getRootCauseMessage(e), false);
+            return response.readEntity(new GenericType<List<ParameterDescriptor>>() { });
+        } catch (ProcessingException | JsonbException e) {
+            throw new GeneratorException("Could not read server parameters: " + ExceptionUtils.getRootCauseMessage(e), false);
         }
     }
 

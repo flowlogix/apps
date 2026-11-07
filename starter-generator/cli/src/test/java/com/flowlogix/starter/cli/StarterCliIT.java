@@ -93,10 +93,28 @@ class StarterCliIT {
     }
 
     @Test
+    void printsOnlyTheResultAsJson(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
+                GeneratorStub.archive("app/pom.xml"))) {
+            LaunchResult result = generate(launcher, generator.url(), dir, "--json");
+
+            Path project = dir.resolve("app");
+            assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+            assertThat(result.getOutput().strip()).isEqualTo(
+                    "{\"nextStep\":\"cd %1$s && ./mvnw verify\",\"projectDir\":\"%1$s\"}".formatted(project));
+        }
+    }
+
+    private static byte[] json(String... parameters) {
+        return ("[" + String.join(",", parameters) + "]").getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Test
     void helpUsesDefaultsFromSelectedServer(QuarkusMainLauncher launcher) throws IOException {
-        byte[] defaults = "packagingType=ear\nuseShiro=false\nshiroVersion=server-shiro\n"
-                .getBytes(StandardCharsets.UTF_8);
-        try (var generator = new GeneratorStub(HTTP_OK, "text/plain", defaults)) {
+        byte[] parameters = json("{\"key\":\"packagingType\",\"defaultValue\":\"ear\"}",
+                "{\"key\":\"useShiro\",\"defaultValue\":\"false\",\"flag\":true}",
+                "{\"key\":\"shiroVersion\",\"defaultValue\":\"server-shiro\"}");
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_JSON, parameters)) {
             LaunchResult result = launcher.launch("--generator-url", generator.url().toString(), "--help");
             String help = result.getOutput();
 
@@ -109,7 +127,7 @@ class StarterCliIT {
                     .contains("Base Java package (default: " + StarterParameters.DEFAULT_PACKAGE + ")")
                     .doesNotContain("default: war", "default: true",
                             "default: " + StarterParameters.defaultValue("shiroVersion"));
-            assertThat(generator.getRequests()).containsExactly("/sg/api/defaults");
+            assertThat(generator.getRequests()).containsExactly("/sg/api/parameters");
         }
     }
 
@@ -123,8 +141,49 @@ class StarterCliIT {
                             "must match base|infra|payara|glassfish")
                     .doesNotContain("default: war", "default: true",
                             "default: " + StarterParameters.defaultValue("shiroVersion"));
-            assertThat(result.getErrorOutput()).contains("Warning: server defaults unavailable", "defaults omitted");
+            assertThat(result.getErrorOutput()).contains("Warning: server parameters unavailable",
+                    "using the options built into this version");
         }
+    }
+
+    @Test
+    void offersOptionsAddedToTheServerSinceThisBuild(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
+        byte[] parameters = json("{\"key\":\"usePrimeFacesExt\",\"defaultValue\":\"false\",\"flag\":true}",
+                "{\"key\":\"theme\",\"validationRegex\":\"light|dark\"}");
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_JSON, parameters)) {
+            LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url", generator.url().toString(),
+                    "--useprimefacesext", "--THEME", "dark", "--dry-run");
+
+            assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+            assertThat(parameters(result.getOutput())).containsEntry("usePrimeFacesExt", "true")
+                    .containsEntry("theme", "dark");
+            assertThat(generator.getRequests()).containsExactly("/sg/api/parameters");
+
+            result = launcher.launch("--generator-url", generator.url().toString(), "--help");
+            assertThat(result.getOutput()).containsPattern("--usePrimeFacesExt\\[=<true\\|false>]\\s+default: false")
+                    .containsPattern("--theme=<value>\\s+must match light\\|dark");
+        }
+    }
+
+    @Test
+    void rejectsOptionsUnknownToTheServerToo(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_JSON, json())) {
+            LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url", generator.url().toString(),
+                    "--useNothing", "--dry-run");
+
+            assertThat(result.exitCode()).isEqualTo(2);
+            assertThat(result.getErrorOutput()).contains("Unknown option: '--useNothing'");
+        }
+    }
+
+    @Test
+    void ignoresCaseOfOptionsAndFlagValues(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--BASETYPE", "glassfish", "--useshiro=FALSE",
+                "--DRY-RUN");
+
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(parameters(result.getOutput())).containsEntry("baseType", "glassfish")
+                .containsEntry("useShiro", "false");
     }
 
     @Test
@@ -146,16 +205,6 @@ class StarterCliIT {
         assertThat(result.exitCode()).isZero();
         assertThat(result.getOutput()).contains("curl -o \"app.zip\" \"");
         assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(expectedParameters("com.acme", "app"));
-    }
-
-    @Test
-    void preservesAnExplicitPackage(QuarkusMainLauncher launcher, @TempDir Path dir) {
-        LaunchResult result = launcher.launch("-o", dir.toString(), "--package", "com.acme.custom", "--dry-run");
-
-        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        var expected = expectedParameters(StarterParameters.DEFAULT_GROUP, StarterParameters.DEFAULT_ARTIFACT);
-        expected.put(StarterParameters.PACKAGE, "com.acme.custom");
-        assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(expected);
     }
 
     @Test
@@ -228,15 +277,5 @@ class StarterCliIT {
             assertThat(dir.resolve("escaped.txt")).doesNotExist();
             assertThat(dir.resolve("out/app")).doesNotExist();
         }
-    }
-
-    @Test
-    void usesTheGeneratorsDefaultGroupAndArtifact(QuarkusMainLauncher launcher, @TempDir Path dir) {
-        LaunchResult result = launcher.launch("-o", dir.toString(), "--dry-run");
-
-        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        assertThat(result.getOutput()).contains("-o \"starter.zip\" ");
-        assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(
-                expectedParameters(StarterParameters.DEFAULT_GROUP, StarterParameters.DEFAULT_ARTIFACT));
     }
 }

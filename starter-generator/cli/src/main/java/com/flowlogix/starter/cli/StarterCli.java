@@ -18,7 +18,9 @@ package com.flowlogix.starter.cli;
 import com.flowlogix.starter.cli.GeneratorClient.GeneratorException;
 import com.flowlogix.starter.common.DownloadRequest;
 import io.quarkus.picocli.runtime.annotations.TopCommand;
+import jakarta.json.bind.JsonbBuilder;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.eclipse.microprofile.config.ConfigProvider;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IVersionProvider;
@@ -48,6 +50,8 @@ import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
                 "2:Invalid input, refused by the command line or by the generator"})
 @RequiredArgsConstructor
 public class StarterCli implements Callable<Integer> {
+    private static final String NEXT_STEP = "cd %s && ./mvnw verify";
+
     @Spec
     CommandSpec spec;
 
@@ -62,6 +66,10 @@ public class StarterCli implements Callable<Integer> {
     @Option(names = "--dry-run", description = "Print the equivalent curl command and exit")
     boolean dryRun;
 
+    @Option(names = "--json", description = "On success, print only a JSON object with the project directory "
+            + "and the next step, for programs reading the output")
+    boolean json;
+
     private final GeneratorOptions options;
 
     /** Reports the version of the build. */
@@ -74,6 +82,7 @@ public class StarterCli implements Callable<Integer> {
     }
 
     @Override
+    @SneakyThrows
     public Integer call() {
         Path projectDir = outputDir.resolve(options.value(ARTIFACT)).toAbsolutePath().normalize();
         if (Files.exists(projectDir)) {
@@ -90,8 +99,10 @@ public class StarterCli implements Callable<Integer> {
             return 0;
         }
 
-        spec.commandLine().getOut().printf("Generating %s through %s, this takes a few seconds...%n",
-                projectDir, generatorUrl.getHost());
+        if (!json) {
+            spec.commandLine().getOut().printf("Generating %s through %s, this takes a few seconds...%n",
+                    projectDir, generatorUrl.getHost());
+        }
         try {
             new GeneratorClient(URI.create(DownloadRequest.apiEndpoint(generatorUrl.toString())))
                     .generate(parameters, projectDir);
@@ -100,7 +111,22 @@ public class StarterCli implements Callable<Integer> {
             // 2 only for a rejection, so that it keeps meaning invalid input
             return e.isRejected() ? 2 : 1;
         }
-        spec.commandLine().getOut().printf("Created %s%n  cd %s && ./mvnw verify%n", projectDir, projectDir);
+        String nextStep = NEXT_STEP.formatted(projectDir);
+        if (json) {
+            try (var jsonb = JsonbBuilder.create()) {
+                spec.commandLine().getOut().println(jsonb.toJson(new Created(projectDir.toString(), nextStep)));
+            }
+        } else {
+            spec.commandLine().getOut().printf("Created %s%n  %s%n", projectDir, nextStep);
+        }
         return 0;
     }
+
+    /**
+     * The result of a successful generation, as printed with {@code --json}.
+     *
+     * @param projectDir absolute path of the created project
+     * @param nextStep command that builds and verifies the project
+     */
+    public record Created(String projectDir, String nextStep) { }
 }

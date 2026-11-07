@@ -16,26 +16,27 @@
 package com.flowlogix.starter.api;
 
 import com.flowlogix.starter.ArchetypeGenerator;
+import com.flowlogix.starter.common.ArchetypeMetadata;
+import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import com.flowlogix.starter.common.DownloadRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import lombok.SneakyThrows;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.util.Properties;
+import java.util.List;
 
-@Path(DownloadRequest.DEFAULTS_PATH)
-public class DefaultsResource {
+/**
+ * Describes the archetype parameters with their effective defaults, so that clients
+ * can offer whatever this server version supports.
+ */
+@Path(DownloadRequest.PARAMETERS_PATH)
+public class ParametersResource {
     @GET
-    @Produces(MediaType.TEXT_PLAIN)
-    @SneakyThrows(IOException.class)
-    public String defaults() {
-        var properties = new Properties();
-        properties.putAll(ArchetypeGenerator.defaults());
-        var output = new StringWriter();
-        properties.store(output, null);
-        return output.toString();
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<ParameterDescriptor> parameters() {
+        var defaults = ArchetypeGenerator.defaults();
+        return ArchetypeMetadata.properties().stream()
+                .map(property -> ParameterDescriptor.of(property, defaults.get(property.key())))
+                .toList();
     }
 }

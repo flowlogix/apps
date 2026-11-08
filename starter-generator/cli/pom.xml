@@ -11,7 +11,7 @@
 
     <artifactId>starter-cli</artifactId>
     <packaging>quarkus</packaging>
-    <name>Starter CLI</name>
+    <name>JStarter - Jakarta EE Starter by Flow Logix</name>
 
     <properties>
         <quarkus.native.additional-build-args>-Os</quarkus.native.additional-build-args>

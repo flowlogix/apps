@@ -35,15 +35,15 @@ import java.util.concurrent.Callable;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 
 /**
- * CLI front end for the Flow Logix starter generator.
+ * CLI front end for JStarter, the Jakarta EE Starter by Flow Logix.
  *
  * <p>It hands the options to the start.flowlogix.com generator, so the same options produce the same project
  * as the web page does, and the generator alone decides which values are valid.
  */
 @TopCommand
-@Command(name = "flowlogix-starter", mixinStandardHelpOptions = true, versionProvider = StarterCli.BuildVersion.class,
+@Command(name = "jstarter", mixinStandardHelpOptions = true, versionProvider = StarterCli.BuildVersion.class,
         usageHelpAutoWidth = true,
-        description = "Scaffolds a new Jakarta EE project with the Flow Logix starter generator.",
+        description = "Creates a Jakarta EE project with JStarter, the Jakarta EE Starter by Flow Logix.",
         exitCodeListHeading = "%nExit codes:%n",
         exitCodeList = {"0:Project created (or request printed, with --dry-run)",
                 "1:Generation failed: target directory exists, or the generator failed or could not be reached",
@@ -76,7 +76,7 @@ public class StarterCli implements Callable<Integer> {
     static class BuildVersion implements IVersionProvider {
         @Override
         public String[] getVersion() {
-            return new String[] {"flowlogix-starter "
+            return new String[] {"jstarter "
                     + ConfigProvider.getConfig().getValue("quarkus.application.version", String.class)};
         }
     }

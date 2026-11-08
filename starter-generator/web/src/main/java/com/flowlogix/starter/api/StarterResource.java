@@ -79,7 +79,7 @@ public class StarterResource {
     }
 
     @GET
-    @Path(DownloadRequest.DOWNLOAD_PATH)
+    @Path(DownloadRequest.GENERATE_PATH)
     @Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN})
     public Response downloadFile(@MatrixParam(ARTIFACT) @DefaultValue(DEFAULT_ARTIFACT)
                                  @Pattern(regexp = "^[a-zA-Z0-9_-]+$",

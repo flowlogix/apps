@@ -65,7 +65,7 @@ class StarterPageIT {
         assertThat(page.textInputs()).allSatisfy(input -> assertThat(input.getDomProperty("value")).isEmpty());
         assertThat(page.getOtherPackagingType()).isEmpty();
         assertThat(page.curlCommand())
-                .startsWith("curl -o \"starter.zip\" \"%sapi/download/;".formatted(baseURL))
+                .startsWith("curl -o \"starter.zip\" \"%sapi/generate/;".formatted(baseURL))
                 .contains("baseType=payara;packagingType=war;")
                 .contains(FEATURES.stream().map(feature -> feature + "=true").toList())
                 .doesNotContain("group=", "artifact=", "projectName=", "package=");
@@ -88,7 +88,7 @@ class StarterPageIT {
         page.updateCommands();
 
         assertThat(page.curlCommand()).contains("-o \"myapp.zip\"",
-                "api/download/;group=com.acme;artifact=myapp;projectName=My%20App;package=com.acme.myapp;",
+                "api/generate/;group=com.acme;artifact=myapp;projectName=My%20App;package=com.acme.myapp;",
                 ";version=2.0;archetypeVersion=154;");
         assertThat(page.mavenCommand()).contains("-DarchetypeVersion=\"154\"", "-DgroupId=\"com.acme\"",
                 "-DartifactId=\"myapp\"", "-DprojectName=\"My App\"", "-Dpackage=\"com.acme.myapp\"",

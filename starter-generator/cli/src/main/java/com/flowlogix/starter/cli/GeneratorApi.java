@@ -29,7 +29,7 @@ import java.util.Map;
  */
 public interface GeneratorApi {
     @GET
-    @Path(DownloadRequest.DOWNLOAD_PATH + "/")
+    @Path(DownloadRequest.GENERATE_PATH + "/")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     Response download(@RestMatrix Map<String, String> parameters);
 

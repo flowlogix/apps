@@ -85,7 +85,7 @@ class StarterCliIT {
             expected.put("useShiro", "true");
             assertThat(generator.getRequests()).hasSize(1).first().extracting(StarterCliIT::parameters)
                     .asInstanceOf(InstanceOfAssertFactories.MAP).containsExactlyInAnyOrderEntriesOf(expected);
-            assertThat(generator.getRequests().getFirst()).startsWith("/sg/api/download/;");
+            assertThat(generator.getRequests().getFirst()).startsWith("/sg/api/generate/;");
             assertThat(dir.resolve("out/app/pom.xml")).hasContent("app/pom.xml");
             assertThat(dir.resolve("out/app/mvnw")).isExecutable();
             assertThat(result.getOutput()).contains("Created ");
@@ -213,7 +213,7 @@ class StarterCliIT {
                 "https://example.com/custom", "--dry-run");
 
         assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        assertThat(result.getOutput()).contains("\"https://example.com/custom/api/download/;");
+        assertThat(result.getOutput()).contains("\"https://example.com/custom/api/generate/;");
     }
 
     @Test

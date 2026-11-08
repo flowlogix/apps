@@ -95,7 +95,7 @@ class DownloadResourceIT {
 
     private HttpResponse<byte[]> get(String matrixParameters) throws IOException, InterruptedException {
         try (var client = HttpClient.newHttpClient()) {
-            return client.send(HttpRequest.newBuilder(URI.create("%sapi/download/;%s".formatted(baseURL, matrixParameters)))
+            return client.send(HttpRequest.newBuilder(URI.create("%sapi/generate/;%s".formatted(baseURL, matrixParameters)))
                     .header("Accept", "application/octet-stream").build(), BodyHandlers.ofByteArray());
         }
     }

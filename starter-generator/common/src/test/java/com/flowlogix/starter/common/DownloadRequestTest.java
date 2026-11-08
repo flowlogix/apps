@@ -29,10 +29,10 @@ class DownloadRequestTest {
         parameters.put("group", "com.acme");
         parameters.put("artifact", "my-app");
 
-        assertEquals("https://example.com/sg/download/;group=com.acme;artifact=my-app",
-                DownloadRequest.url("https://example.com/sg/download", parameters));
-        assertEquals("https://example.com/sg/download/;group=com.acme;artifact=my-app",
-                DownloadRequest.url("https://example.com/sg/download/", parameters));
+        assertEquals("https://example.com/sg/generate/;group=com.acme;artifact=my-app",
+                DownloadRequest.url("https://example.com/sg/generate", parameters));
+        assertEquals("https://example.com/sg/generate/;group=com.acme;artifact=my-app",
+                DownloadRequest.url("https://example.com/sg/generate/", parameters));
     }
 
     @Test

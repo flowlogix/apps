@@ -33,7 +33,7 @@ public class DownloadRequest {
     /** Application path of the generator's API. */
     public static final String API_PATH = "api";
     /** Relative path of the generator's download endpoint. */
-    public static final String DOWNLOAD_PATH = "download";
+    public static final String GENERATE_PATH = "generate";
     /** Relative path listing the archetype parameters the server accepts, as JSON, with their effective defaults. */
     public static final String PARAMETERS_PATH = "parameters";
 
@@ -62,7 +62,7 @@ public class DownloadRequest {
 
     /** Appends the download endpoint path to the generator's base URL. */
     public static String endpoint(String baseUrl) {
-        return apiEndpoint(baseUrl) + DOWNLOAD_PATH + "/";
+        return apiEndpoint(baseUrl) + GENERATE_PATH + "/";
     }
 
     /**

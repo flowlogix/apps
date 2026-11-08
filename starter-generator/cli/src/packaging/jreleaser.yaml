@@ -142,7 +142,7 @@ distributions:
         name: jstarter-spec
     docker:
       active: RELEASE
-      baseImage: ubuntu:24.04
+      baseImage: ubuntu:latest
       buildx:
         enabled: true
         platforms:

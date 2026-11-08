@@ -16,25 +16,42 @@
 package com.flowlogix.starter;
 
 import com.flowlogix.test.AppServerLifecycle;
+import com.flowlogix.util.ShrinkWrapManipulator;
+import org.eu.ingwar.tools.arquillian.extension.suite.annotations.ArquillianSuiteDeployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
+import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.graphene.page.Page;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.jboss.shrinkwrap.api.asset.StringAsset;
+import org.jboss.shrinkwrap.api.spec.WebArchive;
 import java.net.URL;
 import static com.flowlogix.starter.StarterPage.FEATURES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.jboss.arquillian.graphene.Graphene.guardAjax;
 
 @RunAsClient
 @Tag("UserInterface")
 @AppServerLifecycle
+@ArquillianSuiteDeployment
 class StarterPageIT {
     @ArquillianResource
     private URL baseURL;
 
     @Page
     private StarterPage page;
+
+    @SuppressWarnings("unused")
+    @Deployment(testable = false)
+    static WebArchive deploy() {
+        return ShrinkWrapManipulator.<WebArchive>createDeployment()
+                .addAsResource(new StringAsset("""
+                        com.flowlogix.starter.cache-warmup-delay-ms=100
+                        com.flowlogix.starter.cache-warmup-enabled=false
+                        """), "META-INF/microprofile-config.properties");
+    }
 
     @BeforeEach
     void openStarterPage() {
@@ -48,8 +65,7 @@ class StarterPageIT {
         assertThat(page.textInputs()).allSatisfy(input -> assertThat(input.getDomProperty("value")).isEmpty());
         assertThat(page.getOtherPackagingType()).isEmpty();
         assertThat(page.curlCommand())
-                .startsWith("curl -X GET -H \"Accept: application/octet-stream\" -o \"starter.zip\" \"%sdownload/;"
-                        .formatted(baseURL))
+                .startsWith("curl -o \"starter.zip\" \"%sapi/generate/;".formatted(baseURL))
                 .contains("baseType=payara;packagingType=war;")
                 .contains(FEATURES.stream().map(feature -> feature + "=true").toList())
                 .doesNotContain("group=", "artifact=", "projectName=", "package=");
@@ -72,7 +88,7 @@ class StarterPageIT {
         page.updateCommands();
 
         assertThat(page.curlCommand()).contains("-o \"myapp.zip\"",
-                "download/;group=com.acme;artifact=myapp;projectName=My%20App;package=com.acme.myapp;",
+                "api/generate/;group=com.acme;artifact=myapp;projectName=My%20App;package=com.acme.myapp;",
                 ";version=2.0;archetypeVersion=154;");
         assertThat(page.mavenCommand()).contains("-DarchetypeVersion=\"154\"", "-DgroupId=\"com.acme\"",
                 "-DartifactId=\"myapp\"", "-DprojectName=\"My App\"", "-Dpackage=\"com.acme.myapp\"",
@@ -122,8 +138,8 @@ class StarterPageIT {
 
     @Test
     void pathTraversalRejected() {
-        page.getArtifact().sendKeys("../evil");
-        page.getGroup().sendKeys("com.acme");
+        guardAjax(page.getArtifact()).sendKeys("../evil");
+        guardAjax(page.getGroup()).sendKeys("com.acme");
         page.updateCommandsRejected();
         assertThat(page.curlCommand()).doesNotContain("evil");
         assertThat(page.mavenCommand()).doesNotContain("evil");

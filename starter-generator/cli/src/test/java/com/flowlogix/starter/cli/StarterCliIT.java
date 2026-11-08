@@ -16,10 +16,12 @@
 package com.flowlogix.starter.cli;
 
 import com.flowlogix.starter.common.ArchetypeMetadata;
+import com.flowlogix.starter.common.DownloadRequest;
 import com.flowlogix.starter.common.StarterParameters;
 import io.quarkus.test.junit.main.LaunchResult;
 import io.quarkus.test.junit.main.QuarkusMainLauncher;
 import io.quarkus.test.junit.main.QuarkusMainTest;
+import jakarta.ws.rs.core.MediaType;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,8 +43,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @QuarkusMainTest
 class StarterCliIT {
-    private static final String ARCHIVE_TYPE = "application/octet-stream";
-
     /**
      * The matrix parameters of a request, from its path or from a curl command, by name: what the generator
      * sees, independent of the parameters' order and of the generator's address.
@@ -57,14 +57,13 @@ class StarterCliIT {
     }
 
     /**
-     * The parameters the CLI sends for the given group and artifact and the options left out,
-     * which are the generator's defaults.
+     * The parameters the CLI sends for the given group and artifact, leaving archetype defaults to the server.
      */
     private static Map<String, String> expectedParameters(String group, String artifact) {
-        var expected = new HashMap<>(StarterParameters.DEFAULTS);
+        var expected = new HashMap<String, String>();
         expected.put(StarterParameters.GROUP, group);
         expected.put(StarterParameters.ARTIFACT, artifact);
-        expected.put(StarterParameters.PACKAGE, group);
+        expected.put(StarterParameters.PACKAGE, StarterParameters.DEFAULT_PACKAGE);
         return expected;
     }
 
@@ -75,16 +74,18 @@ class StarterCliIT {
 
     @Test
     void createsTheProjectFromTheOptionsGiven(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, GeneratorStub.archive("app/pom.xml", "app/mvnw"))) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
+                GeneratorStub.archive("app/pom.xml", "app/mvnw"))) {
             LaunchResult result = generate(launcher, generator.url(), dir.resolve("out"), "--baseType", "glassfish",
                     "--useShiro");
 
             assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-            // the generator's defaults are sent too, so the project does not depend on the generator's version
             var expected = expectedParameters("com.acme", "app");
             expected.put("baseType", "glassfish");
+            expected.put("useShiro", "true");
             assertThat(generator.getRequests()).hasSize(1).first().extracting(StarterCliIT::parameters)
                     .asInstanceOf(InstanceOfAssertFactories.MAP).containsExactlyInAnyOrderEntriesOf(expected);
+            assertThat(generator.getRequests().getFirst()).startsWith("/sg/api/generate/;");
             assertThat(dir.resolve("out/app/pom.xml")).hasContent("app/pom.xml");
             assertThat(dir.resolve("out/app/mvnw")).isExecutable();
             assertThat(result.getOutput()).contains("Created ");
@@ -92,14 +93,109 @@ class StarterCliIT {
     }
 
     @Test
-    void offersEveryArchetypePropertyAsAnOption(QuarkusMainLauncher launcher) {
-        String help = launcher.launch("--help").getOutput();
+    void printsOnlyTheResultAsJson(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
+                GeneratorStub.archive("app/pom.xml"))) {
+            LaunchResult result = generate(launcher, generator.url(), dir, "--json");
 
-        assertThat(ArchetypeMetadata.properties()).isNotEmpty().allSatisfy(property ->
-                assertThat(help).contains("--" + GeneratorOptions.optionName(property.key())));
-        // the help shows the generator's defaults, which are the web page's, not the archetype's own
-        assertThat(help).containsPattern("--packagingType=<value>\\s+default: war")
-                .containsPattern("--useShiro\\[=<true\\|false>]\\s+default: true");
+            Path project = dir.resolve("app");
+            assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+            assertThat(result.getOutput().strip()).isEqualTo(
+                    "{\"nextStep\":\"cd %1$s && ./mvnw verify\",\"projectDir\":\"%1$s\"}".formatted(project));
+        }
+    }
+
+    private static byte[] json(String... parameters) {
+        return ("[" + String.join(",", parameters) + "]").getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void helpUsesDefaultsFromSelectedServer(QuarkusMainLauncher launcher) throws IOException {
+        byte[] parameters = json("{\"key\":\"packagingType\",\"defaultValue\":\"ear\"}",
+                "{\"key\":\"useShiro\",\"defaultValue\":\"false\",\"flag\":true}",
+                "{\"key\":\"shiroVersion\",\"defaultValue\":\"server-shiro\"}");
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_JSON, parameters)) {
+            LaunchResult result = launcher.launch("--generator-url", generator.url().toString(), "--help");
+            String help = result.getOutput();
+
+            assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+            assertThat(ArchetypeMetadata.properties()).isNotEmpty().allSatisfy(property ->
+                    assertThat(help).contains("--" + GeneratorOptions.optionName(property.key())));
+            assertThat(help).containsPattern("--packagingType=<value>\\s+default: ear")
+                    .containsPattern("--useShiro\\[=<true\\|false>]\\s+default: false")
+                    .containsPattern("--shiroVersion=<value>\\s+default: server-shiro")
+                    .contains("Base Java package (default: " + StarterParameters.DEFAULT_PACKAGE + ")")
+                    .doesNotContain("default: war", "default: true",
+                            "default: " + StarterParameters.defaultValue("shiroVersion"));
+            assertThat(generator.getRequests()).containsExactly("/sg/api/parameters");
+        }
+    }
+
+    @Test
+    void helpOmitsUnavailableDefaultsButKeepsOptionsAndValidation(QuarkusMainLauncher launcher) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_INTERNAL_ERROR, "text/plain", new byte[0])) {
+            LaunchResult result = launcher.launch("--help", "--generator-url", generator.url().toString());
+
+            assertThat(result.exitCode()).isZero();
+            assertThat(result.getOutput()).contains("--shiroVersion=<value>", "--useShiro[=<true|false>]",
+                            "must match base|infra|payara|glassfish")
+                    .doesNotContain("default: war", "default: true",
+                            "default: " + StarterParameters.defaultValue("shiroVersion"));
+            assertThat(result.getErrorOutput()).contains("Warning: server parameters unavailable",
+                    "using the options built into this version");
+        }
+    }
+
+    @Test
+    void offersOptionsAddedToTheServerSinceThisBuild(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
+        byte[] parameters = json("{\"key\":\"usePrimeFacesExt\",\"defaultValue\":\"false\",\"flag\":true}",
+                "{\"key\":\"theme\",\"validationRegex\":\"light|dark\"}");
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_JSON, parameters)) {
+            LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url", generator.url().toString(),
+                    "--useprimefacesext", "--THEME", "dark", "--dry-run");
+
+            assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+            assertThat(parameters(result.getOutput())).containsEntry("usePrimeFacesExt", "true")
+                    .containsEntry("theme", "dark");
+            assertThat(generator.getRequests()).containsExactly("/sg/api/parameters");
+
+            result = launcher.launch("--generator-url", generator.url().toString(), "--help");
+            assertThat(result.getOutput()).containsPattern("--usePrimeFacesExt\\[=<true\\|false>]\\s+default: false")
+                    .containsPattern("--theme=<value>\\s+must match light\\|dark");
+        }
+    }
+
+    @Test
+    void rejectsOptionsUnknownToTheServerToo(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_JSON, json())) {
+            LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url", generator.url().toString(),
+                    "--useNothing", "--dry-run");
+
+            assertThat(result.exitCode()).isEqualTo(2);
+            assertThat(result.getErrorOutput()).contains("Unknown option: '--useNothing'");
+        }
+    }
+
+    @Test
+    void ignoresCaseOfOptionsAndFlagValues(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--BASETYPE", "glassfish", "--useshiro=FALSE",
+                "--DRY-RUN");
+
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(parameters(result.getOutput())).containsEntry("baseType", "glassfish")
+                .containsEntry("useShiro", "false");
+    }
+
+    @Test
+    void helpDoesNotShowLatestDefaultsForAnotherArchetypeVersion(QuarkusMainLauncher launcher) throws IOException {
+        try (var generator = new GeneratorStub(HTTP_OK, "text/plain", new byte[0])) {
+            LaunchResult result = launcher.launch("--help", "--generator-url", generator.url().toString(),
+                    "--archetypeVersion", "157");
+
+            assertThat(result.exitCode()).isZero();
+            assertThat(result.getErrorOutput()).contains("defaults omitted for an explicitly selected archetype version");
+            assertThat(generator.getRequests()).isEmpty();
+        }
     }
 
     @Test
@@ -107,8 +203,17 @@ class StarterCliIT {
         LaunchResult result = launcher.launch("-g", "com.acme", "-a", "app", "-o", dir.toString(), "--dry-run");
 
         assertThat(result.exitCode()).isZero();
-        assertThat(result.getOutput()).contains("curl -X GET -H \"Accept: application/octet-stream\" -o \"app.zip\" \"");
+        assertThat(result.getOutput()).contains("curl -o \"app.zip\" \"");
         assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(expectedParameters("com.acme", "app"));
+    }
+
+    @Test
+    void appendsDownloadPathToCustomBaseUrl(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url",
+                "https://example.com/custom", "--dry-run");
+
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(result.getOutput()).contains("\"https://example.com/custom/api/generate/;");
     }
 
     @Test
@@ -138,19 +243,21 @@ class StarterCliIT {
     @Test
     void failsWhenTheGeneratorCannotBeReached(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
         URI url;
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, new byte[0])) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM, new byte[0])) {
             url = generator.url();
         }
         LaunchResult result = generate(launcher, url, dir);
 
         assertThat(result.exitCode()).isEqualTo(1);
-        assertThat(result.getErrorOutput()).contains("Could not reach the generator at " + url);
+        assertThat(result.getErrorOutput()).contains("Could not reach the generator at "
+            + DownloadRequest.apiEndpoint(url.toString()));
     }
 
     @Test
     void refusesAnExistingProjectDirectory(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
         Files.createDirectory(dir.resolve("app"));
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, GeneratorStub.archive("app/pom.xml"))) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
+                GeneratorStub.archive("app/pom.xml"))) {
             LaunchResult result = generate(launcher, generator.url(), dir);
 
             assertThat(result.exitCode()).isEqualTo(1);
@@ -162,7 +269,7 @@ class StarterCliIT {
     @Test
     void refusesAnEntryOutsideTheOutputDirectory(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
         byte[] archive = GeneratorStub.archive("app/pom.xml", "../escaped.txt");
-        try (var generator = new GeneratorStub(HTTP_OK, ARCHIVE_TYPE, archive)) {
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM, archive)) {
             LaunchResult result = generate(launcher, generator.url(), dir.resolve("out"));
 
             assertThat(result.exitCode()).isEqualTo(1);
@@ -170,15 +277,5 @@ class StarterCliIT {
             assertThat(dir.resolve("escaped.txt")).doesNotExist();
             assertThat(dir.resolve("out/app")).doesNotExist();
         }
-    }
-
-    @Test
-    void usesTheGeneratorsDefaultGroupAndArtifact(QuarkusMainLauncher launcher, @TempDir Path dir) {
-        LaunchResult result = launcher.launch("-o", dir.toString(), "--dry-run");
-
-        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        assertThat(result.getOutput()).contains("-o \"starter.zip\" ");
-        assertThat(parameters(result.getOutput())).containsExactlyInAnyOrderEntriesOf(
-                expectedParameters(StarterParameters.DEFAULT_GROUP, StarterParameters.DEFAULT_ARTIFACT));
     }
 }

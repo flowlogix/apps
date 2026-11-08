@@ -15,7 +15,9 @@
  */
 package com.flowlogix.starter.cli;
 
+import com.flowlogix.starter.common.DownloadRequest;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -27,6 +29,12 @@ import java.util.Map;
  */
 public interface GeneratorApi {
     @GET
+    @Path(DownloadRequest.GENERATE_PATH + "/")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     Response download(@RestMatrix Map<String, String> parameters);
+
+    @GET
+    @Path(DownloadRequest.PARAMETERS_PATH)
+    @Produces(MediaType.APPLICATION_JSON)
+    Response parameters();
 }

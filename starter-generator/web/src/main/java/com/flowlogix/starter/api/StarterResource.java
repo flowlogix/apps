@@ -15,10 +15,12 @@
  */
 package com.flowlogix.starter.api;
 
+import com.flowlogix.starter.ArchetypeCache;
 import com.flowlogix.starter.ArchetypeGenerator;
 import com.flowlogix.starter.ArchetypeGenerator.Parameter;
-import com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 import com.flowlogix.starter.common.ArchetypeMetadata;
+import com.flowlogix.starter.common.DownloadRequest;
+import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,38 +51,48 @@ import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 
+/**
+ * Generates projects, and describes the archetype parameters with their effective defaults,
+ * so that clients can offer whatever this server version supports.
+ */
 @Slf4j
 @Path("/")
-public class DownloadResource {
+public class StarterResource {
     // Allowlist of matrix parameters passed to the generator, mapped to generator parameter names
     private static final Map<String, String> ALLOWED_PARAMETERS = allowedParameters();
     // Values the archetype would accept but that would produce a broken project
     private static final Map<String, Rule> RULES = rules();
 
     @Inject
-    ArchetypeGenerator generator;
+    ArchetypeCache cache;
     @Context
     UriInfo uriInfo;
 
     @GET
+    @Path(DownloadRequest.PARAMETERS_PATH)
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<ParameterDescriptor> parameters() {
+        var defaults = ArchetypeGenerator.defaults();
+        return ArchetypeMetadata.properties().stream()
+                .map(property -> ParameterDescriptor.of(property, defaults.get(property.key())))
+                .toList();
+    }
+
+    @GET
+    @Path(DownloadRequest.GENERATE_PATH)
     @Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN})
     public Response downloadFile(@MatrixParam(ARTIFACT) @DefaultValue(DEFAULT_ARTIFACT)
                                  @Pattern(regexp = "^[a-zA-Z0-9_-]+$",
                                           message = "Artifact ID can only contain letters, numbers, underscores, and hyphens")
                                  @Size(min = 1, max = 100, message = "Artifact ID must be between 1 and 100 characters")
                                  String artifactId) {
-        ReturnValue result = generator.generateArchetype(parameters(artifactId));
-
-        if (result.status() != 0) {
-            result.close();
-            return Response.serverError().type(MediaType.TEXT_PLAIN)
-                    .entity(result.output()).build();
-        }
-
-        StreamingOutput stream = outputStream -> generator.createZipStream(result, outputStream);
-        return Response.ok(stream)
-                .header("Content-Disposition", "attachment; filename=\"%s.zip\"".formatted(artifactId))
-                .build();
+        return switch (cache.download(parameters(artifactId))) {
+            case ArchetypeCache.Result.InvalidRecord invalid -> Response.serverError().type(MediaType.TEXT_PLAIN)
+                    .entity(invalid.output()).build();
+            case ArchetypeCache.Result.Download download -> Response.ok((StreamingOutput) download::write)
+                    .header("Content-Disposition", "attachment; filename=\"%s.zip\"".formatted(artifactId))
+                    .build();
+        };
     }
 
     private Parameter[] parameters(String artifactId) {
@@ -116,9 +128,11 @@ public class DownloadResource {
     private static Map<String, Rule> rules() {
         var rules = new HashMap<String, Rule>();
         ArchetypeMetadata.properties().stream().filter(property -> property.validationRegex() != null)
-                .forEach(property -> rules.put(property.key(), new Rule(value -> value.matches(property.validationRegex()),
+                .forEach(property -> rules.put(property.key(), new Rule(
+                        java.util.regex.Pattern.compile(property.validationRegex()).asMatchPredicate(),
                         "must match " + property.validationRegex())));
-        rules.put(GROUP, new Rule(value -> value.matches("[A-Za-z0-9_.-]+"), "use only letters, digits, '.', '-' and '_'"));
+        rules.put(GROUP, new Rule(java.util.regex.Pattern.compile("[A-Za-z0-9_.-]+").asMatchPredicate(),
+                "use only letters, digits, '.', '-' and '_'"));
         rules.put(PACKAGE, new Rule(SourceVersion::isName, "not a valid Java package name"));
         return Map.copyOf(rules);
     }

@@ -29,10 +29,10 @@ class DownloadRequestTest {
         parameters.put("group", "com.acme");
         parameters.put("artifact", "my-app");
 
-        assertEquals("https://example.com/sg/download/;group=com.acme;artifact=my-app",
-                DownloadRequest.url("https://example.com/sg/download", parameters));
-        assertEquals("https://example.com/sg/download/;group=com.acme;artifact=my-app",
-                DownloadRequest.url("https://example.com/sg/download/", parameters));
+        assertEquals("https://example.com/sg/generate/;group=com.acme;artifact=my-app",
+                DownloadRequest.url("https://example.com/sg/generate", parameters));
+        assertEquals("https://example.com/sg/generate/;group=com.acme;artifact=my-app",
+                DownloadRequest.url("https://example.com/sg/generate/", parameters));
     }
 
     @Test
@@ -51,10 +51,4 @@ class DownloadRequestTest {
         assertEquals("https://example.com/;artifact=my-app", DownloadRequest.url("https://example.com/", parameters));
     }
 
-    @Test
-    void printsTheRequestAsACurlCommand() {
-        assertEquals("curl -X GET -H \"Accept: application/octet-stream\" -o \"my-app.zip\" "
-                + "\"https://example.com/sg/download/;artifact=my-app\"",
-                DownloadRequest.curlCommand("https://example.com/sg/download/;artifact=my-app", "my-app"));
-    }
 }

@@ -15,7 +15,10 @@
  */
 package com.flowlogix.starter.ui;
 
+import com.flowlogix.starter.ArchetypeCache.Result.InvalidRecord;
+import com.flowlogix.starter.ArchetypeCache.WarmupBudget;
 import com.flowlogix.starter.ArchetypeGenerator;
+import com.flowlogix.starter.ArchetypeCache;
 import com.flowlogix.starter.common.DownloadRequest;
 import com.flowlogix.util.ShrinkWrapManipulator;
 import jakarta.enterprise.context.SessionScoped;
@@ -25,21 +28,17 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.ws.rs.core.MediaType;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.omnifaces.util.Faces;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
-import org.primefaces.util.Callbacks;
-import java.io.InputStream;
 import java.io.Serial;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
-import static com.flowlogix.starter.ArchetypeGenerator.ReturnValue;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.defaultValue;
@@ -54,7 +53,10 @@ public class ArchetypeCustomizer implements Serializable {
     private static final long serialVersionUID = 3L;
 
     @Inject
-    ArchetypeGenerator generator;
+    @Delegate
+    ArchetypeCache cache;
+
+    private final WarmupBudget warmupBudget = new WarmupBudget();
 
     private enum BaseType {
         BASE, INFRA, PAYARA, GLASSFISH
@@ -82,22 +84,21 @@ public class ArchetypeCustomizer implements Serializable {
     private boolean useArquillianGraphene = flag("useArquillianGraphene");
 
     public StreamedContent getDownload() {
-        ReturnValue result = generator.generateArchetype(getParameters(false));
-        if (result.status() != 0) {
-            result.close();
-            Faces.redirect(Faces.getRequestURL());
-            return null;
-        }
+        return switch (cache.download(getParameters(false))) {
+            case InvalidRecord _ -> {
+                Faces.redirect(Faces.getRequestURL());
+                yield null;
+            }
+            case ArchetypeCache.Result.Download download -> DefaultStreamedContent.builder()
+                    .name("%s.zip".formatted(artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim()))
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .writer(download::write)
+                    .build();
+        };
+    }
 
-        InputStream input = generator.createZipStream(result);
-        Callbacks.SerializableSupplier<InputStream> callback = () -> input;
-
-        return DefaultStreamedContent.builder()
-                .name("%s.zip".formatted(artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim()))
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .stream(callback)
-                .writer(output -> generator.writer(result, input, output, true))
-                .build();
+    public void warmCache() {
+        cache.warm(getParameters(false), warmupBudget);
     }
 
     private Parameter[] getParameters(boolean forCurl) {
@@ -119,18 +120,7 @@ public class ArchetypeCustomizer implements Serializable {
                 new Parameter("useCodeCoverage", Boolean.toString(useCodeCoverage)),
                 new Parameter("useArquillianGraphene", Boolean.toString(useArquillianGraphene))
         };
-        return appendShiroVersion(parameters);
-    }
-
-    private Parameter[] appendShiroVersion(Parameter[] parameters) {
-        var result = parameters;
-        final String shiroVersionParameter = "shiroVersion";
-        String shiroVersion = System.getProperty(shiroVersionParameter, "").strip();
-        if (!StringUtils.isBlank(shiroVersion)) {
-            result = Arrays.copyOf(parameters, parameters.length + 1);
-            result[parameters.length] = new Parameter(shiroVersionParameter, shiroVersion);
-        }
-        return result;
+        return parameters;
     }
 
     private String processPackagingType() {
@@ -153,7 +143,7 @@ public class ArchetypeCustomizer implements Serializable {
         var baseURL = Faces.isRequestSecure()
                 ? ShrinkWrapManipulator.toHttpsURL(URI.create(Faces.getRequestBaseURL()).toURL())
                 : Faces.getRequestBaseURL();
-        return DownloadRequest.curlCommand(DownloadRequest.url("%sdownload/".formatted(baseURL), parameters),
+        return DownloadRequest.curlCommand(DownloadRequest.url(DownloadRequest.endpoint(baseURL.toString()), parameters),
                 artifact.isBlank() ? DEFAULT_ARTIFACT : artifact.toLowerCase().trim());
     }
 

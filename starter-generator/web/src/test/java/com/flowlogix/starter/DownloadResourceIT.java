@@ -50,8 +50,9 @@ class DownloadResourceIT {
         // artifactId and outputDirectory are not on the allowlist and have to be ignored,
         // so is the repeated artifact, which would otherwise bypass validation;
         // packagingType is left out so that the generator's default (war, as on the web page) is exercised
-        var response = get("artifact=my-app;group=com.acme;projectName=My%20App;version=2.0"
-                + ";useShiro=false;artifactId=hacked;outputDirectory=hacked;artifact=..%2Fhacked");
+        String parameters = "artifact=my-app;group=com.acme;projectName=My%20App;version=2.0"
+                + ";useShiro=false;artifactId=hacked;outputDirectory=hacked;artifact=..%2Fhacked";
+        var response = get(parameters);
         assertThat(response.statusCode()).withFailMessage(() -> new String(response.body(), StandardCharsets.UTF_8))
                 .isEqualTo(OK.getStatusCode());
         assertThat(response.headers().firstValue("Content-Disposition"))
@@ -94,7 +95,7 @@ class DownloadResourceIT {
 
     private HttpResponse<byte[]> get(String matrixParameters) throws IOException, InterruptedException {
         try (var client = HttpClient.newHttpClient()) {
-            return client.send(HttpRequest.newBuilder(URI.create("%sdownload/;%s".formatted(baseURL, matrixParameters)))
+            return client.send(HttpRequest.newBuilder(URI.create("%sapi/generate/;%s".formatted(baseURL, matrixParameters)))
                     .header("Accept", "application/octet-stream").build(), BodyHandlers.ofByteArray());
         }
     }

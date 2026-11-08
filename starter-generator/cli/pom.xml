@@ -13,6 +13,10 @@
     <packaging>quarkus</packaging>
     <name>Starter CLI</name>
 
+    <properties>
+        <quarkus.native.additional-build-args>-Os</quarkus.native.additional-build-args>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -20,12 +24,6 @@
             <version>${project.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>jakarta.platform</groupId>
-            <artifactId>jakarta.jakartaee-web-api</artifactId>
-            <version>${jakarta.ee.version}</version>
-            <scope>compile</scope>
-        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-picocli</artifactId>
@@ -80,31 +78,4 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>io.quarkus.platform</groupId>
-                <artifactId>quarkus-maven-plugin</artifactId>
-                <version>3.40.1.1</version>
-                <extensions>true</extensions>
-            </plugin>
-        </plugins>
-    </build>
-
-    <profiles>
-        <profile>
-            <id>native</id>
-            <activation>
-                <property>
-                    <name>native</name>
-                </property>
-            </activation>
-            <properties>
-                <skipITs>false</skipITs>
-                <quarkus.native.enabled>true</quarkus.native.enabled>
-                <quarkus.native.additional-build-args>-Os</quarkus.native.additional-build-args>
-            </properties>
-        </profile>
-    </profiles>
 </project>

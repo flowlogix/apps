@@ -6,8 +6,8 @@
     <!-- not apps-root, whose dependencies are the web applications' and would end up in the CLI -->
     <parent>
         <groupId>com.flowlogix</groupId>
-        <artifactId>infra-pom</artifactId>
-        <version>148</version>
+        <artifactId>quarkus-pom</artifactId>
+        <version>149</version>
         <relativePath/>
     </parent>
 

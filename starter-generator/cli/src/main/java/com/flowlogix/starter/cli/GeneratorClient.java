@@ -17,6 +17,7 @@ package com.flowlogix.starter.cli;
 
 import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.json.bind.JsonbException;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.core.GenericType;
@@ -46,6 +47,8 @@ import java.util.concurrent.TimeUnit;
  * Client of the starter generator's download endpoint: it requests a project and unpacks the archive that comes back.
  */
 @RequiredArgsConstructor
+// JSON-B instantiates the record reflectively, which a native image only allows when registered
+@RegisterForReflection(targets = ParameterDescriptor.class)
 class GeneratorClient {
     // a streamed archive does not say which entries are executable
     private static final String MAVEN_WRAPPER = "mvnw";

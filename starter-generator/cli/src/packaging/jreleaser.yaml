@@ -1,0 +1,182 @@
+environment:
+  properties:
+    artifactsDir: artifacts
+
+project:
+  name: jstarter
+  description: Jakarta EE Starter by Flow Logix
+  longDescription: Command-line generator of Jakarta EE projects, built as a native executable.
+  authors:
+    - Flow Logix
+  license: Apache-2.0
+  inceptionYear: '2024'
+  links:
+    homepage: https://github.com/flowlogix/apps
+  java:
+    groupId: com.flowlogix
+    artifactId: starter-cli
+    version: '25'
+  tags:
+    - jakarta-ee
+    - cli
+    - starter
+
+release:
+  github:
+    owner: flowlogix
+    name: apps
+    tagName: 'jstarter-{{projectVersion}}'
+    overwrite: true
+    changelog:
+      formatted: ALWAYS
+      preset: conventional-commits
+  # Requires the candidate to be registered with SDKMAN vendor access first
+  sdkman:
+    active: RELEASE
+    candidate: jstarter
+    command: MAJOR
+    release: true
+
+# .deb and .rpm packages built by nfpm in CI
+files:
+  globs:
+    - pattern: '{{artifactsDir}}/*.deb'
+    - pattern: '{{artifactsDir}}/*.rpm'
+
+distributions:
+  # Native executables: linux x86_64/aarch64, macOS aarch64, Windows x86_64
+  jstarter:
+    type: NATIVE_IMAGE
+    executable:
+      name: jstarter
+      windowsExtension: exe
+    artifacts:
+      - path: '{{artifactsDir}}/jstarter-{{projectVersion}}-linux-x86_64.zip'
+        platform: linux-x86_64
+      - path: '{{artifactsDir}}/jstarter-{{projectVersion}}-linux-aarch64.zip'
+        platform: linux-aarch_64
+      - path: '{{artifactsDir}}/jstarter-{{projectVersion}}-osx-aarch64.zip'
+        platform: osx-aarch_64
+      - path: '{{artifactsDir}}/jstarter-{{projectVersion}}-windows-x86_64.zip'
+        platform: windows-x86_64
+    brew:
+      active: RELEASE
+      multiPlatform: true
+      commitAuthor:
+        name: flowlogix-bot
+        email: noreply@flowlogix.com
+      repository:
+        owner: flowlogix
+        name: homebrew-tap
+    scoop:
+      active: RELEASE
+      repository:
+        owner: flowlogix
+        name: scoop-bucket
+    chocolatey:
+      active: RELEASE
+      remoteBuild: true
+      title: JStarter
+      username: flowlogix
+      iconUrl: https://raw.githubusercontent.com/flowlogix/apps/main/starter-generator/cli/icon.png
+    winget:
+      active: RELEASE
+      package:
+        identifier: Flowlogix.JStarter
+        name: JStarter
+      publisher:
+        name: Flow Logix
+        url: https://github.com/flowlogix
+      installer:
+        type: zip
+      defaultLocale:
+        moniker: jstarter
+        publisher:
+          name: Flow Logix
+      repository:
+        owner: flowlogix
+        name: winget-pkgs
+    aurBin:
+      active: RELEASE
+      maintainers:
+        - Flow Logix <noreply@flowlogix.com>
+      commitAuthor:
+        name: flowlogix-bot
+        email: noreply@flowlogix.com
+    asdf:
+      active: RELEASE
+      repository:
+        owner: flowlogix
+        name: asdf-jstarter
+    macports:
+      active: RELEASE
+      maintainers:
+        - flowlogix
+      categories:
+        - devel
+      repository:
+        owner: flowlogix
+        name: macports-ports
+    snap:
+      active: RELEASE
+      remoteBuild: true
+      base: core24
+      confinement: classic
+      grade: stable
+      repository:
+        owner: flowlogix
+        name: snap-jstarter
+    flatpak:
+      active: RELEASE
+      componentId: com.flowlogix.JStarter
+      runtime: org.freedesktop.Platform
+      runtimeVersion: '24.08'
+      sdk: org.freedesktop.Sdk
+      repository:
+        owner: flowlogix
+        name: com.flowlogix.JStarter
+    spec:
+      active: RELEASE
+      repository:
+        owner: flowlogix
+        name: jstarter-spec
+    docker:
+      active: RELEASE
+      baseImage: ubuntu:24.04
+      buildx:
+        enabled: true
+        platforms:
+          - linux/amd64
+          - linux/arm64
+      registries:
+        - serverName: ghcr.io
+          username: flowlogix
+      repository:
+        active: NEVER
+      imageNames:
+        - 'ghcr.io/flowlogix/jstarter:{{projectVersion}}'
+        - 'ghcr.io/flowlogix/jstarter:latest'
+
+  # JVM-based, platform independent
+  jstarter-jar:
+    type: SINGLE_JAR
+    executable:
+      name: jstarter
+    artifacts:
+      - path: '{{artifactsDir}}/jstarter-{{projectVersion}}.jar'
+    jbang:
+      active: RELEASE
+      alias: jstarter
+      repository:
+        owner: flowlogix
+        name: jbang-catalog
+
+  # Runtime for platforms GraalVM can't target natively; built in CI on a Windows ARM runner
+  jstarter-jlink:
+    type: FLAT_BINARY
+    executable:
+      name: jstarter
+      windowsExtension: cmd
+    artifacts:
+      - path: '{{artifactsDir}}/jstarter-{{projectVersion}}-windows-aarch64-jlink.zip'
+        platform: windows-aarch_64

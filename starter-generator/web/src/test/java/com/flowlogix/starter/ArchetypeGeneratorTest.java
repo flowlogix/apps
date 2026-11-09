@@ -49,7 +49,8 @@ class ArchetypeGeneratorTest {
                 .anySatisfy(parameter -> assertThat(parameter).extracting("key", "flag").containsExactly("useShiro", true))
                 .anySatisfy(parameter -> assertThat(parameter).extracting("key", "flag").containsExactly("baseType", false));
         assertThat(defaults).containsEntry("shiroVersion", "server-shiro")
-                .containsEntry("packagingType", StarterParameters.defaultValue("packagingType"));
+                .containsEntry(StarterParameters.PACKAGING_TYPE,
+                        StarterParameters.defaultValue(StarterParameters.PACKAGING_TYPE));
         assertThat(ArchetypeGenerator.generateMavenCommandLine(null, null))
                 .contains("-DshiroVersion=\"server-shiro\"");
         var explicit = new Parameter[] {new Parameter("shiroVersion", "custom-shiro")};

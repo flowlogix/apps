@@ -208,6 +208,17 @@ class StarterCliIT {
     }
 
     @Test
+    void packagingTypeAliases(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--ear", "--dry-run");
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(parameters(result.getOutput())).containsEntry("packagingType", "ear");
+
+        result = launcher.launch("-o", dir.toString(), "--jar", "--war", "--dry-run");
+        assertThat(result.exitCode()).isEqualTo(2);
+        assertThat(result.getErrorOutput()).contains("mutually exclusive");
+    }
+
+    @Test
     void appendsDownloadPathToCustomBaseUrl(QuarkusMainLauncher launcher, @TempDir Path dir) {
         LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url",
                 "https://example.com/custom", "--dry-run");

@@ -43,6 +43,7 @@ import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.defaultValue;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
+import static com.flowlogix.starter.common.StarterParameters.PACKAGING_TYPE;
 
 @Slf4j
 @Named("archetype")
@@ -69,7 +70,7 @@ public class ArchetypeCustomizer implements Serializable {
     private String packageName = "";
     // initial choices are the generator's defaults, so the page, the CLI and a bare request agree
     private BaseType baseType = BaseType.valueOf(defaultValue("baseType").toUpperCase());
-    private String packagingType = defaultValue("packagingType");
+    private String packagingType = defaultValue(PACKAGING_TYPE);
     private String otherPackagingType = "";
     private String version;
     private String archetypeVersion;
@@ -108,7 +109,7 @@ public class ArchetypeCustomizer implements Serializable {
                 new Parameter("projectName", projectName),
                 new Parameter("package", packageName.toLowerCase()),
                 new Parameter("baseType", baseType.name().toLowerCase()),
-                new Parameter("packagingType", processPackagingType()),
+                new Parameter(PACKAGING_TYPE, processPackagingType()),
                 new Parameter("version", version),
                 new Parameter("archetypeVersion", archetypeVersion),
                 new Parameter("useShiro", Boolean.toString(useShiro)),

@@ -30,6 +30,7 @@ public class StarterParameters {
     public static final String ARTIFACT = "artifact";
     public static final String PACKAGE = "package";
     public static final String ARCHETYPE_VERSION = "archetypeVersion";
+    public static final String PACKAGING_TYPE = "packagingType";
     /** Group the generator uses when none is given. */
     public static final String DEFAULT_GROUP = "com.example";
     /** Artifact the generator uses when none is given. */
@@ -44,7 +45,7 @@ public class StarterParameters {
             "projectName", "Starter Project",
             "version", "1.x-SNAPSHOT",
             "baseType", "payara",
-            "packagingType", "war",
+            PACKAGING_TYPE, "war",
             "useShiro", "true",
             "useAgenticAI", "true",
             "useOmniFaces", "true",

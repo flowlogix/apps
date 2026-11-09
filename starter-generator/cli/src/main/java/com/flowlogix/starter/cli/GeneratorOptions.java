@@ -41,6 +41,7 @@ import static com.flowlogix.starter.common.StarterParameters.DEFAULT_GROUP;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_PACKAGE;
 import static com.flowlogix.starter.common.StarterParameters.GROUP;
 import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
+import static com.flowlogix.starter.common.StarterParameters.PACKAGING_TYPE;
 
 /**
  * The generator's parameters as command line options: one for each property the archetype declares,
@@ -50,7 +51,9 @@ import static com.flowlogix.starter.common.StarterParameters.PACKAGE;
 class GeneratorOptions {
     // --version prints the version of the command line itself
     private static final Map<String, String> RENAMED = Map.of("version", "projectVersion");
+    private static final List<String> PACKAGING_ALIASES = List.of("jar", "war", "ear");
     private final Map<String, OptionSpec> options = new LinkedHashMap<>();
+    private final Map<String, OptionSpec> packagingAliases = new LinkedHashMap<>();
 
     @Produces
     CommandLine commandLine(PicocliCommandLineFactory factory) {
@@ -68,6 +71,12 @@ class GeneratorOptions {
         CommandLine commandLine = factory.create();
         commandLine.setOptionsCaseInsensitive(true);
         options.values().forEach(commandLine.getCommandSpec()::addOption);
+        PACKAGING_ALIASES.forEach(type -> {
+            var alias = OptionSpec.builder("--" + type).type(boolean.class)
+                    .description("Same as --" + PACKAGING_TYPE + "=" + type).build();
+            packagingAliases.put(type, alias);
+            commandLine.getCommandSpec().addOption(alias);
+        });
         var execution = commandLine.getExecutionStrategy();
         // options the server added since this build are not known yet, see withServerParameters
         commandLine.setUnmatchedArgumentsAllowed(true);
@@ -87,6 +96,13 @@ class GeneratorOptions {
                 parameters.put(name, value);
             }
         });
+        var requested = packagingAliases.entrySet().stream()
+                .filter(alias -> Boolean.TRUE.equals(alias.getValue().getValue())).map(Map.Entry::getKey).toList();
+        if (requested.size() > 1 || !requested.isEmpty() && parameters.containsKey(PACKAGING_TYPE)) {
+            throw new CommandLine.ParameterException(packagingAliases.values().iterator().next().command().commandLine(),
+                    "--jar, --war, --ear and --" + PACKAGING_TYPE + " are mutually exclusive");
+        }
+        requested.forEach(type -> parameters.put(PACKAGING_TYPE, type));
         return parameters;
     }
 

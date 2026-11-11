@@ -78,7 +78,7 @@ class GeneratorClient {
      */
     void generate(Map<String, String> parameters, Path projectDir) throws GeneratorException {
         var endpoint = UriBuilder.fromUri(generatorUrl).path(DownloadRequest.GENERATE_PATH + "/");
-        parameters.forEach((name, value) -> endpoint.matrixParam(name, value));
+        parameters.forEach(endpoint::matrixParam);
         var generator = RestClientBuilder.newBuilder().baseUri(endpoint.build())
                 .property("microprofile.rest.client.disable.default.mapper", true).build(GeneratorApi.class);
         try (Response response = generator.download()) {
@@ -106,7 +106,7 @@ class GeneratorClient {
             if (response.getStatus() != Status.OK.getStatusCode()) {
                 throw failure(response);
             }
-            return response.readEntity(new GenericType<List<ParameterDescriptor>>() { });
+            return response.readEntity(new GenericType<>() { });
         } catch (ProcessingException | JsonbException e) {
             throw new GeneratorException("Could not read server parameters: " + ExceptionUtils.getRootCauseMessage(e), false);
         }

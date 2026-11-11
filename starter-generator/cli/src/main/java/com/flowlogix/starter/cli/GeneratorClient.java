@@ -15,8 +15,8 @@
  */
 package com.flowlogix.starter.cli;
 
+import com.flowlogix.starter.common.DownloadRequest;
 import com.flowlogix.starter.common.DownloadRequest.ParameterDescriptor;
-import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.json.bind.JsonbException;
 import jakarta.ws.rs.ProcessingException;
@@ -24,6 +24,7 @@ import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.compress.archivers.examples.Expander;
@@ -31,6 +32,7 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.file.PathUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serial;
@@ -75,9 +77,11 @@ class GeneratorClient {
      * Requests the project and unpacks it into its directory, which the generator names after the artifact.
      */
     void generate(Map<String, String> parameters, Path projectDir) throws GeneratorException {
-        var generator = QuarkusRestClientBuilder.newBuilder().baseUri(generatorUrl)
-                .disableDefaultMapper(true).build(GeneratorApi.class);
-        try (Response response = generator.download(parameters)) {
+        var endpoint = UriBuilder.fromUri(generatorUrl).path(DownloadRequest.GENERATE_PATH + "/");
+        parameters.forEach((name, value) -> endpoint.matrixParam(name, value));
+        var generator = RestClientBuilder.newBuilder().baseUri(endpoint.build())
+                .property("microprofile.rest.client.disable.default.mapper", true).build(GeneratorApi.class);
+        try (Response response = generator.download()) {
             if (response.getStatus() != Status.OK.getStatusCode()) {
                 throw failure(response);
             }
@@ -95,9 +99,9 @@ class GeneratorClient {
      * The archetype parameters the generator accepts, with its effective defaults.
      */
     List<ParameterDescriptor> parameters() throws GeneratorException {
-        var generator = QuarkusRestClientBuilder.newBuilder().baseUri(generatorUrl)
+        var generator = RestClientBuilder.newBuilder().baseUri(generatorUrl)
                 .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS)
-                .disableDefaultMapper(true).build(GeneratorApi.class);
+                .property("microprofile.rest.client.disable.default.mapper", true).build(GeneratorApi.class);
         try (Response response = generator.parameters()) {
             if (response.getStatus() != Status.OK.getStatusCode()) {
                 throw failure(response);

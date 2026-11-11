@@ -21,17 +21,14 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.jboss.resteasy.reactive.RestMatrix;
-import java.util.Map;
 
 /**
  * The generator's download endpoint, which takes its parameters as matrix parameters of the path.
  */
 public interface GeneratorApi {
     @GET
-    @Path(DownloadRequest.GENERATE_PATH + "/")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    Response download(@RestMatrix Map<String, String> parameters);
+    Response download();
 
     @GET
     @Path(DownloadRequest.PARAMETERS_PATH)

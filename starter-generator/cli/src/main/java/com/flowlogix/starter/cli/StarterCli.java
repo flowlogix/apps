@@ -77,7 +77,7 @@ public class StarterCli implements Callable<Integer> {
         @Override
         public String[] getVersion() {
             return new String[] {"jstarter "
-                    + ConfigProvider.getConfig().getValue("quarkus.application.version", String.class)};
+                    + ConfigProvider.getConfig().getValue("application.version", String.class)};
         }
     }
 

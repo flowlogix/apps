@@ -93,6 +93,19 @@ class StarterCliIT {
     }
 
     @Test
+    void encodesMatrixParameterValues(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
+        String version = "1.0 preview;next=value/part%done";
+        try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
+                GeneratorStub.archive("app/pom.xml"))) {
+            LaunchResult result = generate(launcher, generator.url(), dir, "--projectVersion", version);
+
+            assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+            assertThat(generator.getRequests()).hasSize(1).first().extracting(StarterCliIT::parameters)
+                    .asInstanceOf(InstanceOfAssertFactories.MAP).containsEntry("version", version);
+        }
+    }
+
+    @Test
     void printsOnlyTheResultAsJson(QuarkusMainLauncher launcher, @TempDir Path dir) throws IOException {
         try (var generator = new GeneratorStub(HTTP_OK, MediaType.APPLICATION_OCTET_STREAM,
                 GeneratorStub.archive("app/pom.xml"))) {

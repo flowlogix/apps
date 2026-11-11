@@ -261,7 +261,9 @@ public class ArchetypeCache {
         Path path = null;
         try (var result = generator.generateArchetype(parameters)) {
             if (result.status() != 0) {
-                log.warn("Archetype generation failed with status {}: {}", result.status(), result.output());
+                if (!result.suppressed()) {
+                    log.warn("Archetype generation failed with status {}: {}", result.status(), result.output());
+                }
                 return new CachedZip(null, result.status(), result.output(), clock.instant());
             }
             path = Files.createTempFile(cacheDirectory, "starter-generator-cache-", ".zip");

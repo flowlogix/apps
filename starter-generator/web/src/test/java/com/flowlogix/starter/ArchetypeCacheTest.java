@@ -67,7 +67,7 @@ class ArchetypeCacheTest {
         when(cache.generator.generateArchetype(any())).thenAnswer(invocation -> {
             Path project = Files.createDirectory(projects.resolve("project-" + generated++));
             Files.writeString(project.resolve("pom.xml"), "project");
-            return new ReturnValue(project, 0, "");
+            return new ReturnValue(project, 0, false, "");
         });
     }
 
@@ -179,7 +179,7 @@ class ArchetypeCacheTest {
         doAnswer(invocation -> {
             Path project = Files.createDirectory(projects.resolve("refreshed"));
             Files.writeString(project.resolve("pom.xml"), "refreshed");
-            return new ReturnValue(project, 0, "");
+            return new ReturnValue(project, 0, false, "");
         }).when(cache.generator).generateArchetype(any());
         jobs.remove().run();
         try (var download = assertInstanceOf(Download.class, cache.download(null));
@@ -212,7 +212,7 @@ class ArchetypeCacheTest {
     @Test
     void failedGenerationCanBeRetriedAndExceptionalFailureIsPropagated() throws IOException {
         Path failed = Files.createDirectory(projects.resolve("failed"));
-        when(cache.generator.generateArchetype(any())).thenReturn(new ReturnValue(failed, 1, "Maven failed"));
+        when(cache.generator.generateArchetype(any())).thenReturn(new ReturnValue(failed, 1, false, "Maven failed"));
         doAnswer(invocation -> {
             ((Runnable) invocation.getArgument(0)).run();
             return null;
@@ -222,7 +222,7 @@ class ArchetypeCacheTest {
         when(cache.generator.generateArchetype(any())).thenAnswer(invocation -> {
             Path project = Files.createDirectory(projects.resolve("retry"));
             Files.writeString(project.resolve("pom.xml"), "project");
-            return new ReturnValue(project, 0, "");
+            return new ReturnValue(project, 0, false, "");
         });
         try (var download = assertInstanceOf(Download.class, cache.download(null))) {
             assertThat(download.input().readAllBytes()).isNotEmpty();

@@ -53,7 +53,7 @@ public class ArchetypeGenerator {
     private final String jvmOptions;
 
     public record Parameter(@NonNull String key, String value) { }
-    public record ReturnValue(Path temporaryPath, int status, String output) implements AutoCloseable {
+    public record ReturnValue(Path temporaryPath, int status, boolean suppressed, String output) implements AutoCloseable {
         @Override
         public void close() {
             cleanup(temporaryPath);
@@ -97,10 +97,11 @@ public class ArchetypeGenerator {
             }
             try {
                 var mavenProcess = builder.start();
-                return new ReturnValue(temporaryPath, mavenProcess.waitFor(), readString(mavenProcess.getInputStream()));
-            } catch (IOException e) {
+                return new ReturnValue(temporaryPath, mavenProcess.waitFor(), false,
+                        readString(mavenProcess.getInputStream()));
+            } catch (IOException | IllegalStateException e) {
                 log.debug("Failed to execute Maven process", e);
-                return new ReturnValue(temporaryPath, -1, e.getMessage());
+                return new ReturnValue(temporaryPath, -1, e instanceof IllegalStateException, e.getMessage());
             }
         } finally {
             rootMavenPath.ifPresent(ArchetypeGenerator::cleanup);
@@ -145,6 +146,8 @@ public class ArchetypeGenerator {
     private static void cleanup(Path path) {
         try (var paths = Files.walk(path)) {
             paths.sorted(Comparator.reverseOrder()).forEach(ArchetypeGenerator::deleteFile);
+        } catch (IllegalStateException e) {
+            log.debug("Failed to cleanup path: {}", path, e);
         }
     }
 

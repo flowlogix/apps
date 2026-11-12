@@ -23,7 +23,7 @@
         <flowlogix.version>11.7.6</flowlogix.version>
         <depchain.version>135</depchain.version>
         <arquillian.graphene.version>3.0.1.Final</arquillian.graphene.version>
-        <shiro.version>3.0.1</shiro.version>
+        <shiro.version>3.0.2</shiro.version>
         <jandex.skip>false</jandex.skip>
 
         <postgres.provided>true</postgres.provided>
@@ -204,7 +204,7 @@
             <plugin>
                 <groupId>io.smallrye</groupId>
                 <artifactId>jandex-maven-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.6.1</version>
                 <configuration>
                     <skip>${jandex.skip}</skip>
                 </configuration>

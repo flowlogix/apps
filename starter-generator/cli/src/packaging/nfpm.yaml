@@ -1,0 +1,13 @@
+name: jstarter
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${VERSION}
+maintainer: Flow Logix <noreply@flowlogix.com>
+description: Jakarta EE Starter by Flow Logix
+homepage: https://github.com/flowlogix/apps
+license: Apache-2.0
+contents:
+  - src: ${BINARY}
+    dst: /usr/bin/jstarter
+    file_info:
+      mode: 0755

@@ -69,10 +69,11 @@ public class DownloadRequest {
      * Builds the request URL. Blank parameters are left out, so the generator applies its own defaults to them.
      */
     public static String url(String endpoint, Map<String, String> parameters) {
-        return (endpoint.endsWith("/") ? endpoint : endpoint + "/") + parameters.entrySet().stream()
+        String path = parameters.entrySet().stream()
                 .filter(parameter -> parameter.getValue() != null && !parameter.getValue().isBlank())
-                .map(parameter -> ";%s=%s".formatted(parameter.getKey(), encode(parameter.getValue().trim())))
-                .collect(Collectors.joining());
+                .map(parameter -> "%s=%s".formatted(parameter.getKey(), encode(parameter.getValue().trim())))
+                .collect(Collectors.joining(";"));
+        return endpoint.replaceFirst("/$", "") + (path.isEmpty() ? "" : "/;" + path);
     }
 
     /**

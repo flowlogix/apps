@@ -40,6 +40,7 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
@@ -138,9 +139,12 @@ public class ArchetypeCustomizer implements Serializable {
     }
 
     public String getCurlCommand() throws MalformedURLException {
-        // toMap() rejects null values, and untouched fields such as archetypeVersion are null
-        var parameters = getParameters(true).stream().collect(LinkedHashMap<String, String>::new,
-                (map, parameter) -> map.put(parameter.key(), parameter.value()), Map::putAll);
+        var defaults = ArchetypeGenerator.defaults();
+        var parameters = getParameters(true).stream()
+                .filter(parameter -> !Objects.equals(defaults.get(parameter.key()),
+                        Objects.toString(parameter.value(), "").trim()))
+                .collect(LinkedHashMap<String, String>::new,
+                        (map, parameter) -> map.put(parameter.key(), parameter.value()), Map::putAll);
         var baseURL = Faces.isRequestSecure()
                 ? ShrinkWrapManipulator.toHttpsURL(URI.create(Faces.getRequestBaseURL()).toURL())
                 : Faces.getRequestBaseURL();
@@ -149,6 +153,7 @@ public class ArchetypeCustomizer implements Serializable {
     }
 
     public String getMavenCommand() {
+        // Keep explicit defaults because this command bypasses the generator's custom defaults.
         return String.join(" ", ArchetypeGenerator.generateMavenCommandLine(getParameters(false), null));
     }
 

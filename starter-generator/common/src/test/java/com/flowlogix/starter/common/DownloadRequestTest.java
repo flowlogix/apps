@@ -51,4 +51,10 @@ class DownloadRequestTest {
         assertEquals("https://example.com/;artifact=my-app", DownloadRequest.url("https://example.com/", parameters));
     }
 
+    @Test
+    void removesTrailingSlashWhenThereAreNoParameters() {
+        assertEquals("https://example.com/sg/generate",
+                DownloadRequest.url("https://example.com/sg/generate/", Map.of()));
+    }
+
 }

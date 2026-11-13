@@ -65,14 +65,14 @@ class StarterPageIT {
         assertThat(page.textInputs()).allSatisfy(input -> assertThat(input.getDomProperty("value")).isEmpty());
         assertThat(page.getOtherPackagingType()).isEmpty();
         assertThat(page.curlCommand())
-                .startsWith("curl -o \"starter.zip\" \"%sapi/generate/;".formatted(baseURL))
-                .contains("baseType=payara;packagingType=war;")
-                .contains(FEATURES.stream().map(feature -> feature + "=true").toList())
-                .doesNotContain("group=", "artifact=", "projectName=", "package=");
+                .as("Default curl uses the bare endpoint without redundant parameters or a trailing slash")
+                .isEqualTo("curl -o \"starter.zip\" \"%sapi/generate\"".formatted(baseURL));
         assertThat(page.mavenCommand())
-                .startsWith("mvn archetype:generate -DarchetypeGroupId=\"com.flowlogix.archetypes\" "
-                        + "-DarchetypeArtifactId=\"starter\" -DarchetypeVersion=\"LATEST\"")
-                .contains("-DgroupId=\"com.example\"", "-DartifactId=\"starter\"",
+                .as("Direct Maven invocation retains the generator's defaults")
+                .startsWith("mvn archetype:generate ")
+                .contains("-DarchetypeGroupId=\"com.flowlogix.archetypes\"",
+                        "-DarchetypeArtifactId=\"starter\"", "-DarchetypeVersion=\"LATEST\"",
+                        "-DgroupId=\"com.example\"", "-DartifactId=\"starter\"",
                         "-Dpackage=\"com.example.starter\"", "-DbaseType=\"payara\"", "-DpackagingType=\"war\"")
                 .doesNotContain("outputDirectory");
     }
@@ -88,8 +88,8 @@ class StarterPageIT {
         page.updateCommands();
 
         assertThat(page.curlCommand()).contains("-o \"myapp.zip\"",
-                "api/generate/;group=com.acme;artifact=myapp;projectName=My%20App;package=com.acme.myapp;",
-                ";version=2.0;archetypeVersion=154;");
+                "group=com.acme", "artifact=myapp", "projectName=My%20App", "package=com.acme.myapp",
+                "version=2.0", "archetypeVersion=154");
         assertThat(page.mavenCommand()).contains("-DarchetypeVersion=\"154\"", "-DgroupId=\"com.acme\"",
                 "-DartifactId=\"myapp\"", "-DprojectName=\"My App\"", "-Dpackage=\"com.acme.myapp\"",
                 "-Dversion=\"2.0\"");
@@ -98,7 +98,7 @@ class StarterPageIT {
     @Test
     void baseType() {
         page.selectBaseType("GlassFish");
-        assertThat(page.curlCommand()).contains("baseType=glassfish;");
+        assertThat(page.curlCommand()).contains("baseType=glassfish");
         assertThat(page.mavenCommand()).contains("-DbaseType=\"glassfish\"");
     }
 
@@ -117,12 +117,12 @@ class StarterPageIT {
         assertThat(page.getOtherPackagingType()).hasSize(1);
         page.getOtherPackagingType().getFirst().sendKeys("POM");
         page.updateCommands();
-        assertThat(page.curlCommand()).contains("packagingType=pom;");
+        assertThat(page.curlCommand()).contains("packagingType=pom");
         assertThat(page.mavenCommand()).contains("-DpackagingType=\"pom\"");
 
         page.selectPackagingType("EAR");
         assertThat(page.getOtherPackagingType()).isEmpty();
-        assertThat(page.curlCommand()).contains("packagingType=ear;");
+        assertThat(page.curlCommand()).contains("packagingType=ear");
     }
 
     @Test
@@ -133,7 +133,8 @@ class StarterPageIT {
             assertThat(page.mavenCommand()).contains("-D%s=\"false\"".formatted(feature));
         }
         page.toggleFeature("useShiro");
-        assertThat(page.curlCommand()).contains("useShiro=true", "useAgenticAI=false");
+        assertThat(page.curlCommand()).as("Restoring a default removes its curl parameter")
+                .doesNotContain("useShiro=").contains("useAgenticAI=false");
     }
 
     @Test
@@ -149,10 +150,11 @@ class StarterPageIT {
     void resetFields() {
         page.getArtifact().sendKeys("myapp");
         page.toggleFeature("useShiro");
-        assertThat(page.curlCommand()).contains("artifact=myapp;", "useShiro=false");
+        assertThat(page.curlCommand()).contains("artifact=myapp", "useShiro=false");
 
         page.reset();
         assertThat(page.getArtifact().getDomProperty("value")).isEmpty();
-        assertThat(page.curlCommand()).contains("-o \"starter.zip\"", "useShiro=true").doesNotContain("artifact=");
+        assertThat(page.curlCommand()).as("Reset restores the default download command")
+                .isEqualTo("curl -o \"starter.zip\" \"%sapi/generate\"".formatted(baseURL));
     }
 }

@@ -38,6 +38,8 @@ import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 import static com.flowlogix.starter.ArchetypeGenerator.Parameter;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 import static com.flowlogix.starter.common.StarterParameters.DEFAULT_ARTIFACT;
@@ -102,8 +104,8 @@ public class ArchetypeCustomizer implements Serializable {
         cache.warm(getParameters(false), warmupBudget);
     }
 
-    private Parameter[] getParameters(boolean forCurl) {
-        var parameters = new Parameter[] {
+    private List<Parameter> getParameters(boolean forCurl) {
+        return List.of(
                 new Parameter(forCurl ? GROUP : "groupId", group.toLowerCase()),
                 new Parameter(forCurl ? ARTIFACT : "artifactId", artifact.toLowerCase()),
                 new Parameter("projectName", projectName),
@@ -120,8 +122,7 @@ public class ArchetypeCustomizer implements Serializable {
                 new Parameter("useMavenCache", Boolean.toString(useMavenCache)),
                 new Parameter("useCodeCoverage", Boolean.toString(useCodeCoverage)),
                 new Parameter("useArquillianGraphene", Boolean.toString(useArquillianGraphene))
-        };
-        return parameters;
+        );
     }
 
     private String processPackagingType() {
@@ -137,10 +138,8 @@ public class ArchetypeCustomizer implements Serializable {
     }
 
     public String getCurlCommand() throws MalformedURLException {
-        var parameters = new LinkedHashMap<String, String>();
-        for (Parameter parameter : getParameters(true)) {
-            parameters.put(parameter.key(), parameter.value());
-        }
+        var parameters = getParameters(true).stream()
+                .collect(Collectors.toMap(Parameter::key, Parameter::value, (first, second) -> second, LinkedHashMap::new));
         var baseURL = Faces.isRequestSecure()
                 ? ShrinkWrapManipulator.toHttpsURL(URI.create(Faces.getRequestBaseURL()).toURL())
                 : Faces.getRequestBaseURL();
@@ -149,8 +148,7 @@ public class ArchetypeCustomizer implements Serializable {
     }
 
     public String getMavenCommand() {
-        return String.join(" ", ArchetypeGenerator.generateMavenCommandLine(
-                getParameters(false), null));
+        return String.join(" ", ArchetypeGenerator.generateMavenCommandLine(getParameters(false), null));
     }
 
     public void resetSession() {

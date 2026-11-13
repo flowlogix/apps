@@ -35,7 +35,7 @@ public class ArchetypeCacheLifecycle {
 
     @PostConstruct
     void warmDefaults() {
-        cache.warm(null);
+        cache.warmDefaults();
     }
 
     @Schedule(hour = "*", minute = "*", persistent = false)

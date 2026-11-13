@@ -75,7 +75,7 @@ public class ArchetypeGenerator {
     }
 
     @SneakyThrows({IOException.class, InterruptedException.class})
-    public ReturnValue generateArchetype(Parameter[] inputParameters) {
+    public ReturnValue generateArchetype(List<Parameter> inputParameters) {
         log.debug("Available Permits: {}", semaphore.availablePermits());
         semaphore.acquire();
         Optional<Path> rootMavenPath = Optional.empty();
@@ -109,14 +109,14 @@ public class ArchetypeGenerator {
         }
     }
 
-    public static List<String> generateMavenCommandLine(Parameter[] inputParameters, String projectDirectory) {
+    public static List<String> generateMavenCommandLine(List<Parameter> inputParameters, String projectDirectory) {
         return Stream.concat(Stream.of("mvn", "archetype:generate"),
                 extractParameters(inputParameters, projectDirectory).entrySet().stream()
                         .map(entry -> (projectDirectory != null ? "-D%s=%s" : "-D%s=\"%s\"")
                         .formatted(entry.getKey(), entry.getValue()))).toList();
     }
 
-    static String cacheKey(Parameter[] inputParameters) {
+    static String cacheKey(List<Parameter> inputParameters) {
         var parameters = new TreeMap<>(extractParameters(inputParameters, null));
         var defaults = defaults();
         ArchetypeMetadata.properties().forEach(property -> parameters.remove(property.key(), defaults.get(property.key())));
@@ -151,7 +151,7 @@ public class ArchetypeGenerator {
         }
     }
 
-    private static Map<String, String> extractParameters(Parameter[] inputParameters, String projectDirectory) {
+    private static Map<String, String> extractParameters(List<Parameter> inputParameters, String projectDirectory) {
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put("archetypeGroupId", "com.flowlogix.archetypes");
         parameters.put("archetypeArtifactId", "starter");
@@ -167,11 +167,9 @@ public class ArchetypeGenerator {
         // same defaults as the web page, so a bare request and the page produce the same project
         parameters.putAll(defaultOverrides());
 
-        if (inputParameters != null) {
-            for (Parameter parameter : inputParameters) {
-                if (parameter.value() != null && !parameter.value().isBlank()) {
-                    parameters.put(parameter.key(), parameter.value().trim());
-                }
+        for (Parameter parameter : inputParameters) {
+            if (parameter.value() != null && !parameter.value().isBlank()) {
+                parameters.put(parameter.key(), parameter.value().trim());
             }
         }
         return parameters;

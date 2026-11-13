@@ -95,7 +95,7 @@ public class StarterResource {
         };
     }
 
-    private Parameter[] parameters(String artifactId) {
+    private List<Parameter> parameters(String artifactId) {
         List<PathSegment> segments = uriInfo.getPathSegments();
         Map<String, List<String>> matrix = segments.isEmpty() ? Map.of() : segments.getLast().getMatrixParameters();
         return matrix.entrySet().stream()
@@ -103,7 +103,7 @@ public class StarterResource {
                 // repeated matrix parameters must not bypass validation
                 .map(entry -> parameter(entry.getKey(), ARTIFACT.equals(entry.getKey())
                         ? artifactId : entry.getValue().getLast()))
-                .toArray(Parameter[]::new);
+                .toList();
     }
 
     private static Parameter parameter(String name, String value) {

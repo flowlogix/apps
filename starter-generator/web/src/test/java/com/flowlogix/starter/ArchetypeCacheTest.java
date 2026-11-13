@@ -32,12 +32,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletionException;
 import java.util.zip.ZipInputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static com.flowlogix.starter.common.StarterParameters.PACKAGING_TYPE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -81,23 +83,28 @@ class ArchetypeCacheTest {
         var lifecycle = new ArchetypeCacheLifecycle();
         lifecycle.cache = cache;
         lifecycle.warmDefaults();
-        assertThat(jobs).hasSize(1);
-        var download = cache.requestDownload(null);
-        assertThat(jobs).hasSize(1);
+        assertThat(jobs).hasSize(2);
+        var download = cache.requestDownload(List.of());
+        var jarDownload = cache.requestDownload(List.of(new Parameter(PACKAGING_TYPE, "jar")));
+        assertThat(jobs).hasSize(2);
         assertThat(download).isNotDone();
+        assertThat(jarDownload).isNotDone();
         jobs.remove().run();
-        try (var result = assertInstanceOf(Download.class, download.join())) {
+        jobs.remove().run();
+        try (var result = assertInstanceOf(Download.class, download.join());
+             var jarResult = assertInstanceOf(Download.class, jarDownload.join())) {
             assertThat(result.input().readAllBytes()).isNotEmpty();
+            assertThat(jarResult.input().readAllBytes()).isNotEmpty();
         }
-        verify(cache.generator).generateArchetype(any());
+        verify(cache.generator, times(2)).generateArchetype(any());
     }
 
     @Test
     void sharesWarmupAndDownloadsForNormalizedParameters() throws IOException {
-        var parameters = new Parameter[] {new Parameter("artifactId", " app "), new Parameter("version", "2")};
-        var reordered = new Parameter[] {new Parameter("version", "2"), new Parameter("artifactId", "app")};
-        cache.warm(parameters);
-        cache.warm(reordered);
+        var parameters = List.of(new Parameter("artifactId", " app "), new Parameter("version", "2"));
+        var reordered = List.of(new Parameter("version", "2"), new Parameter("artifactId", "app"));
+        cache.warm(parameters, null);
+        cache.warm(reordered, null);
         assertThat(jobs).hasSize(1);
         jobs.remove().run();
         try (var first = assertInstanceOf(Download.class, cache.download(parameters));
@@ -114,15 +121,15 @@ class ArchetypeCacheTest {
     @Test
     void pendingDownloadsOpenBeforeEviction() throws IOException {
         cache.maxEntries = 1;
-        var first = cache.requestDownload(null);
-        var second = cache.requestDownload(null);
+        var first = cache.requestDownload(List.of());
+        var second = cache.requestDownload(List.of());
         assertThat(jobs).hasSize(1);
         assertThat(first).isNotDone();
         assertThat(second).isNotDone();
         jobs.remove().run();
         try (var firstDownload = assertInstanceOf(Download.class, first.join());
              var secondDownload = assertInstanceOf(Download.class, second.join())) {
-            cache.warm(new Parameter[] {new Parameter("artifactId", "other")});
+            cache.warm(List.of(new Parameter("artifactId", "other")), null);
             jobs.remove().run();
             assertThat(firstDownload.input().readAllBytes()).isNotEmpty()
                     .isEqualTo(secondDownload.input().readAllBytes());
@@ -132,8 +139,8 @@ class ArchetypeCacheTest {
 
     @Test
     void shutdownCompletesDownloadsWhoseGenerationHasNotStarted() {
-        var first = cache.requestDownload(null);
-        var second = cache.requestDownload(null);
+        var first = cache.requestDownload(List.of());
+        var second = cache.requestDownload(List.of());
         assertThat(jobs).hasSize(1);
         cache.close();
         assertThat(first).isCompletedExceptionally();
@@ -146,14 +153,14 @@ class ArchetypeCacheTest {
 
     @Test
     void expiresAtConfiguredLifetime() {
-        var parameters = new Parameter[] {new Parameter("artifactId", "expiring")};
-        cache.warm(parameters);
+        var parameters = List.of(new Parameter("artifactId", "expiring"));
+        cache.warm(parameters, null);
         jobs.remove().run();
         when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)).minusSeconds(1));
-        cache.warm(parameters);
+        cache.warm(parameters, null);
         assertThat(jobs).isEmpty();
         when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)));
-        cache.warm(parameters);
+        cache.warm(parameters, null);
         assertThat(jobs).hasSize(1);
         jobs.remove().run();
         verify(cache.generator, times(2)).generateArchetype(any());
@@ -162,18 +169,18 @@ class ArchetypeCacheTest {
     @Test
     void expiredDefaultsStayAvailableUntilRefreshSucceeds() throws IOException {
         cache.maxEntries = 1;
-        cache.warm(null);
+        cache.warm(List.of(), null);
         jobs.remove().run();
         when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)));
         cache.evictExpired();
         cache.evictExpired();
         assertThat(jobs).hasSize(1);
-        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+        try (var download = assertInstanceOf(Download.class, cache.download(List.of()))) {
             assertThat(download.input().readAllBytes()).isNotEmpty();
         }
         when(cache.generator.generateArchetype(any())).thenThrow(new IllegalStateException("Refresh failed"));
         jobs.remove().run();
-        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+        try (var download = assertInstanceOf(Download.class, cache.download(List.of()))) {
             assertThat(download.input().readAllBytes()).isNotEmpty();
         }
         doAnswer(invocation -> {
@@ -182,7 +189,7 @@ class ArchetypeCacheTest {
             return new ReturnValue(project, 0, false, "");
         }).when(cache.generator).generateArchetype(any());
         jobs.remove().run();
-        try (var download = assertInstanceOf(Download.class, cache.download(null));
+        try (var download = assertInstanceOf(Download.class, cache.download(List.of()));
              var zip = new ZipInputStream(download.input())) {
             assertThat(zip.getNextEntry().getName()).isEqualTo("pom.xml");
             assertThat(new String(zip.readAllBytes())).isEqualTo("refreshed");
@@ -193,16 +200,16 @@ class ArchetypeCacheTest {
     @Test
     void boundsEntriesWithoutInterruptingOpenDownloads() throws IOException {
         cache.maxEntries = 1;
-        cache.warm(null);
+        cache.warm(List.of(), null);
         jobs.remove().run();
-        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
-            var other = new Parameter[] {new Parameter("artifactId", "other")};
-            cache.warm(other);
+        try (var download = assertInstanceOf(Download.class, cache.download(List.of()))) {
+            var other = List.of(new Parameter("artifactId", "other"));
+            cache.warm(other, null);
             jobs.remove().run();
             var output = new ByteArrayOutputStream();
             download.write(output);
             assertThat(output.size()).isPositive();
-            cache.warm(null);
+            cache.warm(List.of(), null);
             assertThat(jobs).hasSize(1);
             jobs.remove().run();
         }
@@ -217,19 +224,19 @@ class ArchetypeCacheTest {
             ((Runnable) invocation.getArgument(0)).run();
             return null;
         }).when(cache.executor).execute(any());
-        assertThat(cache.download(null)).isEqualTo(new InvalidRecord(1, "Maven failed"));
+        assertThat(cache.download(List.of())).isEqualTo(new InvalidRecord(1, "Maven failed"));
 
         when(cache.generator.generateArchetype(any())).thenAnswer(invocation -> {
             Path project = Files.createDirectory(projects.resolve("retry"));
             Files.writeString(project.resolve("pom.xml"), "project");
             return new ReturnValue(project, 0, false, "");
         });
-        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+        try (var download = assertInstanceOf(Download.class, cache.download(List.of()))) {
             assertThat(download.input().readAllBytes()).isNotEmpty();
         }
 
         when(cache.generator.generateArchetype(any())).thenThrow(new IllegalStateException("broken"));
-        var differentParameters = new Parameter[] {new Parameter("artifactId", "exception")};
+        var differentParameters = List.of(new Parameter("artifactId", "exception"));
         assertThatThrownBy(() -> cache.download(differentParameters)).isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
         verify(cache.generator, times(3)).generateArchetype(any());
@@ -239,24 +246,24 @@ class ArchetypeCacheTest {
     void warmupBudgetCountsOnlyNewJobsAndResumesAfterOneMinute() {
         var budget = new ArchetypeCache.WarmupBudget();
         final int limit = 5;
-        cache.warm(null, budget);
-        cache.warm(null, budget);
+        cache.warm(List.of(), budget);
+        cache.warm(List.of(), budget);
         jobs.remove().run();
-        cache.warm(null, budget);
+        cache.warm(List.of(), budget);
         for (int index = 1; index < limit; index++) {
-            cache.warm(new Parameter[] {new Parameter("artifactId", "app-" + index)}, budget);
+            cache.warm(List.of(new Parameter("artifactId", "app-" + index)), budget);
         }
         assertThat(jobs).hasSize(limit - 1);
-        var next = new Parameter[] {new Parameter("artifactId", "next")};
+        var next = List.of(new Parameter("artifactId", "next"));
         cache.warm(next, budget);
         assertThat(jobs).hasSize(limit - 1);
         cache.warm(next, new ArchetypeCache.WarmupBudget());
         assertThat(jobs).hasSize(limit);
         when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofMinutes(1)).minusSeconds(1));
-        cache.warm(new Parameter[] {new Parameter("artifactId", "after-pause")}, budget);
+        cache.warm(List.of(new Parameter("artifactId", "after-pause")), budget);
         assertThat(jobs).hasSize(limit);
         when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofMinutes(1)));
-        cache.warm(new Parameter[] {new Parameter("artifactId", "after-pause")}, budget);
+        cache.warm(List.of(new Parameter("artifactId", "after-pause")), budget);
         assertThat(jobs).hasSize(limit + 1);
         while (!jobs.isEmpty()) {
             jobs.remove().run();
@@ -269,29 +276,15 @@ class ArchetypeCacheTest {
         var lifecycle = new ArchetypeCacheLifecycle();
         lifecycle.cache = cache;
         lifecycle.warmDefaults();
-        cache.warm(null, new ArchetypeCache.WarmupBudget());
+        cache.warm(List.of(), new ArchetypeCache.WarmupBudget());
         assertThat(jobs).isEmpty();
         doAnswer(invocation -> {
             ((Runnable) invocation.getArgument(0)).run();
             return null;
         }).when(cache.executor).execute(any());
-        try (var download = assertInstanceOf(Download.class, cache.download(null))) {
+        try (var download = assertInstanceOf(Download.class, cache.download(List.of()))) {
             assertThat(download.input().readAllBytes()).isNotEmpty();
         }
         verify(cache.generator).generateArchetype(any());
-    }
-
-    @Test
-    void defaultsShareKeysAndDifferentOptionsDoNot() {
-        assertThat(ArchetypeGenerator.cacheKey(null))
-                .isEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {
-                        new Parameter("artifactId", "starter"), new Parameter("version", " "),
-                        new Parameter("groupId", "com.example"), new Parameter("baseType", "payara")}))
-                .isEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {
-                        new Parameter("useMavenCache", "true"), new Parameter("useCodeCoverage", "true"),
-                        new Parameter("useArquillianGraphene", "true")}))
-                .isNotEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {new Parameter("useMavenCache", "false")}))
-                .isNotEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {new Parameter("useShiro", "false")}))
-                .isNotEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {new Parameter("archetypeVersion", "154")}));
     }
 }

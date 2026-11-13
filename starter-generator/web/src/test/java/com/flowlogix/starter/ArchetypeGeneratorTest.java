@@ -22,6 +22,7 @@ import com.flowlogix.starter.common.StarterParameters;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
+import java.util.List;
 import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,14 +52,14 @@ class ArchetypeGeneratorTest {
         assertThat(defaults).containsEntry("shiroVersion", "server-shiro")
                 .containsEntry(StarterParameters.PACKAGING_TYPE,
                         StarterParameters.defaultValue(StarterParameters.PACKAGING_TYPE));
-        assertThat(ArchetypeGenerator.generateMavenCommandLine(null, null))
+        assertThat(ArchetypeGenerator.generateMavenCommandLine(List.of(), null))
                 .contains("-DshiroVersion=\"server-shiro\"");
-        var explicit = new Parameter[] {new Parameter("shiroVersion", "custom-shiro")};
+        var explicit = List.of(new Parameter("shiroVersion", "custom-shiro"));
         assertThat(ArchetypeGenerator.generateMavenCommandLine(explicit, null))
                 .contains("-DshiroVersion=\"custom-shiro\"").doesNotContain("-DshiroVersion=\"server-shiro\"");
-        assertThat(ArchetypeGenerator.cacheKey(null))
-                .isEqualTo(ArchetypeGenerator.cacheKey(new Parameter[] {
-                        new Parameter("shiroVersion", "server-shiro")}))
+        assertThat(ArchetypeGenerator.cacheKey(List.of()))
+                .isEqualTo(ArchetypeGenerator.cacheKey(List.of(
+                        new Parameter("shiroVersion", "server-shiro"))))
                 .isNotEqualTo(ArchetypeGenerator.cacheKey(explicit));
     }
 
@@ -68,7 +69,21 @@ class ArchetypeGeneratorTest {
 
         assertThat(ArchetypeGenerator.defaults().get("shiroVersion"))
                 .isEqualTo(StarterParameters.defaultValue("shiroVersion"));
-        assertThat(ArchetypeGenerator.generateMavenCommandLine(null, null))
+        assertThat(ArchetypeGenerator.generateMavenCommandLine(List.of(), null))
                 .noneMatch(argument -> argument.startsWith("-DshiroVersion="));
+    }
+
+    @Test
+    void defaultsShareKeysAndDifferentOptionsDoNot() {
+        assertThat(ArchetypeGenerator.cacheKey(List.of()))
+                .isEqualTo(ArchetypeGenerator.cacheKey(List.of(
+                        new Parameter("artifactId", "starter"), new Parameter("version", " "),
+                        new Parameter("groupId", "com.example"), new Parameter("baseType", "payara"))))
+                .isEqualTo(ArchetypeGenerator.cacheKey(List.of(
+                        new Parameter("useMavenCache", "true"), new Parameter("useCodeCoverage", "true"),
+                        new Parameter("useArquillianGraphene", "true"))))
+                .isNotEqualTo(ArchetypeGenerator.cacheKey(List.of(new Parameter("useMavenCache", "false"))))
+                .isNotEqualTo(ArchetypeGenerator.cacheKey(List.of(new Parameter("useShiro", "false"))))
+                .isNotEqualTo(ArchetypeGenerator.cacheKey(List.of(new Parameter("archetypeVersion", "154"))));
     }
 }

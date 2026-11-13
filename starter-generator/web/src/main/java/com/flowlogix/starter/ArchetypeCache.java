@@ -42,11 +42,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.SequencedMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
+
+import static com.flowlogix.starter.common.StarterParameters.PACKAGING_TYPE;
 
 /**
  * Node-local disk ZIPs indexed by normalized cURL commands.
@@ -55,6 +58,8 @@ import java.util.function.BooleanSupplier;
 @ApplicationScoped
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class ArchetypeCache {
+    /** Projects generated at startup and kept warm, by cache key. */
+    private static final Map<String, List<Parameter>> PINNED = Map.ofEntries(pinned("war"), pinned("jar"));
     @Inject
     ArchetypeGenerator generator;
     @Inject
@@ -77,7 +82,6 @@ public class ArchetypeCache {
     private int cacheWarmupDelay;
     private final SequencedMap<String, CachedZip> entries = new LinkedHashMap<>();
     private final Map<String, CompletableFuture<CachedZip>> pending = new HashMap<>();
-    private final String defaultKey = ArchetypeGenerator.cacheKey(null);
     private boolean closed;
 
     public ArchetypeCache() {
@@ -145,22 +149,30 @@ public class ArchetypeCache {
         log.info("Archetype ZIP cache location: {}", cacheDirectory);
     }
 
-    public void warm(Parameter[] parameters) {
-        warm(parameters, null);
+    /**
+     * Generates the default WAR and JAR projects ahead of requests.
+     */
+    public void warmDefaults() {
+        PINNED.values().forEach(parameters -> warm(parameters, null));
     }
 
-    public void warm(Parameter[] parameters, WarmupBudget budget) {
+    private static Map.Entry<String, List<Parameter>> pinned(String packaging) {
+        var parameters = List.of(new Parameter(PACKAGING_TYPE, packaging));
+        return Map.entry(ArchetypeGenerator.cacheKey(parameters), parameters);
+    }
+
+    public void warm(List<Parameter> parameters, WarmupBudget budget) {
         if (warmupEnabled) {
             getOrGenerateZip(parameters, () -> budget == null || budget.acquire(clock.instant()));
         }
     }
 
-    public Result download(Parameter[] parameters) {
+    public Result download(List<Parameter> parameters) {
         return requestDownload(parameters).join();
     }
 
     @Synchronized
-    CompletableFuture<Result> requestDownload(Parameter[] parameters) {
+    CompletableFuture<Result> requestDownload(List<Parameter> parameters) {
         // Register under the same lock used to complete generation and evict ZIPs.
         return getOrGenerateZip(parameters, () -> true).thenApply(this::openDownload);
     }
@@ -175,7 +187,7 @@ public class ArchetypeCache {
     }
 
     @Synchronized
-    private CompletableFuture<CachedZip> getOrGenerateZip(Parameter[] parameters, BooleanSupplier allowGeneration) {
+    private CompletableFuture<CachedZip> getOrGenerateZip(List<Parameter> parameters, BooleanSupplier allowGeneration) {
         if (closed) {
             throw new IllegalStateException("Archetype cache is closed");
         }
@@ -189,7 +201,7 @@ public class ArchetypeCache {
         return scheduleGeneration(key, parameters, allowGeneration);
     }
 
-    private CompletableFuture<CachedZip> scheduleGeneration(String key, Parameter[] parameters,
+    private CompletableFuture<CachedZip> scheduleGeneration(String key, List<Parameter> parameters,
                                                             BooleanSupplier allowGeneration) {
         var future = pending.get(key);
         if (future == null) {
@@ -199,7 +211,7 @@ public class ArchetypeCache {
             future = new CompletableFuture<>();
             pending.put(key, future);
             var result = future;
-            Parameter[] snapshot = parameters == null ? null : parameters.clone();
+            var snapshot = List.copyOf(parameters);
             try {
                 executor.execute(() -> generate(key, snapshot, result));
             } catch (RuntimeException e) {
@@ -210,7 +222,7 @@ public class ArchetypeCache {
         return future;
     }
 
-    private void generate(String key, Parameter[] parameters, CompletableFuture<CachedZip> future) {
+    private void generate(String key, List<Parameter> parameters, CompletableFuture<CachedZip> future) {
         CachedZip zip = null;
         try {
             zip = generateZip(parameters);
@@ -257,7 +269,7 @@ public class ArchetypeCache {
         future.completeExceptionally(failure);
     }
 
-    private CachedZip generateZip(Parameter[] parameters) throws IOException {
+    private CachedZip generateZip(List<Parameter> parameters) throws IOException {
         Path path = null;
         try (var result = generator.generateArchetype(parameters)) {
             if (result.status() != 0) {
@@ -282,22 +294,20 @@ public class ArchetypeCache {
     @Synchronized
     void evictExpired() {
         Instant cutoff = clock.instant().minus(Duration.ofHours(hours));
-        boolean refreshDefaults = false;
         var iterator = entries.entrySet().iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();
             CachedZip zip = entry.getValue();
             if (!zip.created.isAfter(cutoff)) {
-                if (entry.getKey().equals(defaultKey)) {
-                    refreshDefaults = true;
+                if (PINNED.containsKey(entry.getKey())) {
+                    if (warmupEnabled && !closed) {
+                        scheduleGeneration(entry.getKey(), PINNED.get(entry.getKey()), () -> true);
+                    }
                 } else {
                     zip.delete();
                     iterator.remove();
                 }
             }
-        }
-        if (refreshDefaults && warmupEnabled && !closed) {
-            scheduleGeneration(defaultKey, null, () -> true);
         }
     }
 

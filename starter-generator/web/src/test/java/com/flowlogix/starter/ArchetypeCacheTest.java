@@ -66,7 +66,7 @@ class ArchetypeCacheTest {
         cache.generator = mock(ArchetypeGenerator.class);
         cache.executor = mock(ManagedExecutorService.class);
         doAnswer(invocation -> jobs.add(invocation.getArgument(0))).when(cache.executor).execute(any());
-        when(cache.generator.generateArchetype(any())).thenAnswer(invocation -> {
+        when(cache.generator.generateArchetype(any())).thenAnswer(_ -> {
             Path project = Files.createDirectory(projects.resolve("project-" + generated++));
             Files.writeString(project.resolve("pom.xml"), "project");
             return new ReturnValue(project, 0, false, "");
@@ -183,7 +183,7 @@ class ArchetypeCacheTest {
         try (var download = assertInstanceOf(Download.class, cache.download(List.of()))) {
             assertThat(download.input().readAllBytes()).isNotEmpty();
         }
-        doAnswer(invocation -> {
+        doAnswer(_ -> {
             Path project = Files.createDirectory(projects.resolve("refreshed"));
             Files.writeString(project.resolve("pom.xml"), "refreshed");
             return new ReturnValue(project, 0, false, "");
@@ -198,7 +198,7 @@ class ArchetypeCacheTest {
     }
 
     @Test
-    void boundsEntriesWithoutInterruptingOpenDownloads() throws IOException {
+    void boundsEntriesWithoutInterruptingOpenDownloads() {
         cache.maxEntries = 1;
         cache.warm(List.of(), null);
         jobs.remove().run();
@@ -226,7 +226,7 @@ class ArchetypeCacheTest {
         }).when(cache.executor).execute(any());
         assertThat(cache.download(List.of())).isEqualTo(new InvalidRecord(1, "Maven failed"));
 
-        when(cache.generator.generateArchetype(any())).thenAnswer(invocation -> {
+        when(cache.generator.generateArchetype(any())).thenAnswer(_ -> {
             Path project = Files.createDirectory(projects.resolve("retry"));
             Files.writeString(project.resolve("pom.xml"), "project");
             return new ReturnValue(project, 0, false, "");

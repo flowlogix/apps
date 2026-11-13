@@ -84,6 +84,7 @@ public class ArchetypeCache {
     private final Map<String, CompletableFuture<CachedZip>> pending = new HashMap<>();
     private boolean closed;
 
+    @SuppressWarnings("unused")
     public ArchetypeCache() {
         this(Clock.systemUTC());
     }

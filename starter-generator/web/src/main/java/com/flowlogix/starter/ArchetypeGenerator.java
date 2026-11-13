@@ -60,6 +60,7 @@ public class ArchetypeGenerator {
         }
     }
 
+    @SuppressWarnings("unused")
     public ArchetypeGenerator() {
         this(1, "-Xmx256m");
     }

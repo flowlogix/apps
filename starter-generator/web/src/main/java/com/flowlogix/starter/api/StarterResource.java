@@ -122,7 +122,7 @@ public class StarterResource {
                         Map.entry(ARTIFACT, "artifactId"),
                         Map.entry(PACKAGE, "package"),
                         Map.entry(ARCHETYPE_VERSION, "archetypeVersion")))
-                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (first, var) -> first));
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (first, _) -> first));
     }
 
     private static Map<String, Rule> rules() {

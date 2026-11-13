@@ -139,7 +139,7 @@ public class ArchetypeCustomizer implements Serializable {
 
     public String getCurlCommand() throws MalformedURLException {
         var parameters = getParameters(true).stream()
-                .collect(Collectors.toMap(Parameter::key, Parameter::value, (first, second) -> second, LinkedHashMap::new));
+                .collect(Collectors.toMap(Parameter::key, Parameter::value, (_, second) -> second, LinkedHashMap::new));
         var baseURL = Faces.isRequestSecure()
                 ? ShrinkWrapManipulator.toHttpsURL(URI.create(Faces.getRequestBaseURL()).toURL())
                 : Faces.getRequestBaseURL();

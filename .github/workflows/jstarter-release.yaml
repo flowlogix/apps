@@ -1,0 +1,127 @@
+name: Release JStarter CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (e.g. 1.0.0)
+        required: true
+
+env:
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: ubuntu-26.04, platform: linux-x86_64, nfpm_arch: amd64 }
+          - { os: ubuntu-26.04-arm, platform: linux-aarch64, nfpm_arch: arm64 }
+          - { os: macos-latest, platform: osx-aarch64 }
+          - { os: windows-latest, platform: windows-x86_64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: graalvm
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: maven
+      - name: Build native executable
+        shell: bash
+        run: |
+          mvn -B -f starter-generator/pom.xml -pl cli -am package -Dnative -DskipTests \
+            -Dquarkus.native.container-build=false
+      - name: Package
+        shell: bash
+        run: |
+          D=jstarter-$VERSION
+          mkdir -p $D/bin
+          EXT=""; [ "${{ runner.os }}" = "Windows" ] && EXT=".exe"
+          cp starter-generator/cli/target/*-runner$EXT $D/bin/jstarter$EXT
+          7z a jstarter-$VERSION-${{ matrix.platform }}.zip $D
+      - name: Build .deb and .rpm from the native binary
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          export NFPM_ARCH=${{ matrix.nfpm_arch }} BINARY=$PWD/jstarter-$VERSION/bin/jstarter
+          for fmt in deb rpm; do
+            "$(go env GOPATH)/bin/nfpm" package -f starter-generator/cli/src/packaging/nfpm.yaml -p $fmt \
+              -t jstarter-$VERSION-${{ matrix.platform }}.$fmt
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jstarter-${{ matrix.platform }}
+          path: |
+            jstarter-*.zip
+            jstarter-*.deb
+            jstarter-*.rpm
+
+  build-jlink:
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+          cache: maven
+      - name: Build runnable jar
+        shell: bash
+        run: |
+          mvn -B -f starter-generator/pom.xml -pl cli -am package -DskipTests \
+            -Dquarkus.package.jar.type=uber-jar
+      - name: Stage runnable jar for JBang
+        shell: bash
+        run: cp starter-generator/cli/target/*-runner.jar jstarter-$VERSION.jar
+      - name: Create JLink runtime
+        shell: bash
+        run: |
+          D=jstarter-$VERSION
+          JAR=$(ls starter-generator/cli/target/*-runner.jar)
+          MODULES=$(jdeps --ignore-missing-deps --multi-release 25 --print-module-deps "$JAR")
+          jlink --add-modules "$MODULES,jdk.crypto.ec" --strip-debug --no-header-files --no-man-pages \
+            --compress zip-6 --output $D/runtime
+          mkdir -p $D/lib $D/bin
+          cp "$JAR" $D/lib/jstarter.jar
+          printf '@echo off\r\n"%%~dp0..\\runtime\\bin\\java.exe" -jar "%%~dp0..\\lib\\jstarter.jar" %%*\r\n' > $D/bin/jstarter.cmd
+          7z a jstarter-$VERSION-windows-aarch64-jlink.zip $D
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jstarter-windows-aarch64-jlink
+          path: |
+            jstarter-*.zip
+            jstarter-*.jar
+
+  release:
+    needs: [build, build-jlink]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: starter-generator/cli/artifacts
+          pattern: jstarter-*
+          merge-multiple: true
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: jreleaser/release-action@v2
+        with:
+          arguments: full-release --config-file=src/packaging/jreleaser.yaml
+          working-directory: starter-generator/cli
+        env:
+          JRELEASER_PROJECT_VERSION: ${{ inputs.version }}
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
+          JRELEASER_CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+          JRELEASER_DOCKER_GHCR_IO_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_SNAP_LOGIN: ${{ secrets.SNAP_LOGIN }}
+          JRELEASER_AUR_BIN_PRIVATE_KEY: ${{ secrets.AUR_PRIVATE_KEY }}
+          JRELEASER_AUR_BIN_PUBLIC_KEY: ${{ secrets.AUR_PUBLIC_KEY }}
+          JRELEASER_SDKMAN_CONSUMER_KEY: ${{ secrets.SDKMAN_CONSUMER_KEY }}
+          JRELEASER_SDKMAN_CONSUMER_TOKEN: ${{ secrets.SDKMAN_CONSUMER_TOKEN }}

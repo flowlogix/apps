@@ -17,7 +17,7 @@
             <!-- Source of the archetype's properties, see ArchetypeMetadata -->
             <groupId>com.flowlogix.archetypes</groupId>
             <artifactId>starter</artifactId>
-            <version>161</version>
+            <version>162</version>
         </dependency>
     </dependencies>
 </project>

@@ -94,7 +94,6 @@
         <dependency>
             <groupId>org.primefaces</groupId>
             <artifactId>primefaces</artifactId>
-            <classifier>annotated</classifier>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

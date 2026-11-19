@@ -35,12 +35,6 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>flowlogix-datamodel</artifactId>
             <version>${flowlogix.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.primefaces</groupId>
-                    <artifactId>primefaces</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
     </dependencies>
 

@@ -93,6 +93,7 @@
                             <f:selectItem itemLabel="Infra" itemValue="INFRA"/>
                             <f:selectItem itemLabel="Payara" itemValue="PAYARA"/>
                             <f:selectItem itemLabel="GlassFish" itemValue="GLASSFISH"/>
+                            <f:selectItem itemLabel="Quarkus" itemValue="QUARKUS"/>
                             <p:ajax update="@form" process="@form" listener="#{archetype.warmCache}"/>
                         </p:selectOneRadio>
                     </div>
@@ -106,6 +107,7 @@
 
             <div class="form-section">
                 <h3 class="mt-0 text-600">Packaging &amp; Archetype</h3>
+                <h:panelGroup rendered="#{archetype.packagingSelectable}">
                 <div class="field">
                     <p:selectOneRadio id="packagingType" value="#{archetype.packagingType}" layout="lineDirection">
                         <f:selectItem itemLabel="JAR" itemValue="jar"/>
@@ -120,6 +122,7 @@
                         <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>
                     </p:inputText>
                 </p:panelGrid>
+                </h:panelGroup>
                 <div class="field">
                     <p:inputText id="archetypeVersion" value="#{archetype.archetypeVersion}" placeholder="Archetype Version to use" styleClass="w-full">
                         <p:ajax event="keyup" delay="#{archetype.cacheWarmupDelay}" process="@form" listener="#{archetype.warmCache}"/>

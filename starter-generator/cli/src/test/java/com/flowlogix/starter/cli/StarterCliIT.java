@@ -151,7 +151,7 @@ class StarterCliIT {
 
             assertThat(result.exitCode()).isZero();
             assertThat(result.getOutput()).contains("--shiroVersion=<value>", "--useShiro[=<true|false>]",
-                            "must match base|infra|payara|glassfish")
+                            "must match base|infra|payara|glassfish|quarkus")
                     .doesNotContain("default: war", "default: true",
                             "default: " + StarterParameters.defaultValue("shiroVersion"));
             assertThat(result.getErrorOutput()).contains("Warning: server parameters unavailable",

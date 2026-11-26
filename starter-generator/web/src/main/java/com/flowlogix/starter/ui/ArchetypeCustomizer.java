@@ -63,7 +63,7 @@ public class ArchetypeCustomizer implements Serializable {
     private final WarmupBudget warmupBudget = new WarmupBudget();
 
     private enum BaseType {
-        BASE, INFRA, PAYARA, GLASSFISH
+        BASE, INFRA, PAYARA, GLASSFISH, QUARKUS
     }
 
     @Pattern(regexp = "^(?!.*(?:\\.{2}|/)).*$", message = "Invalid path: Path traversal attempt detected")
@@ -126,6 +126,16 @@ public class ArchetypeCustomizer implements Serializable {
         );
     }
 
+    /// Whether the page offers a packaging choice. Quarkus projects always use quarkus packaging.
+    public boolean isPackagingSelectable() {
+        return baseType != BaseType.QUARKUS;
+    }
+
+    /// Whether a parameter applies to the chosen base type, so the commands leave out those that do not.
+    private boolean isApplicable(Parameter parameter) {
+        return isPackagingSelectable() || !PACKAGING_TYPE.equals(parameter.key());
+    }
+
     private String processPackagingType() {
         return switch (packagingType) {
             case "other" -> otherPackagingType.toLowerCase();
@@ -141,6 +151,7 @@ public class ArchetypeCustomizer implements Serializable {
     public String getCurlCommand() throws MalformedURLException {
         var defaults = ArchetypeGenerator.defaults();
         var parameters = getParameters(true).stream()
+                .filter(this::isApplicable)
                 .filter(parameter -> !Objects.equals(defaults.get(parameter.key()),
                         Objects.toString(parameter.value(), "").trim()))
                 .collect(LinkedHashMap<String, String>::new,
@@ -154,7 +165,8 @@ public class ArchetypeCustomizer implements Serializable {
 
     public String getMavenCommand() {
         // Keep explicit defaults because this command bypasses the generator's custom defaults.
-        return String.join(" ", ArchetypeGenerator.generateMavenCommandLine(getParameters(false), null));
+        return String.join(" ", ArchetypeGenerator.generateMavenCommandLine(getParameters(false).stream()
+                .filter(this::isApplicable).toList(), null));
     }
 
     public void resetSession() {

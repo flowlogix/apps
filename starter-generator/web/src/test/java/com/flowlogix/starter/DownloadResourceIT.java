@@ -80,7 +80,7 @@ class DownloadResourceIT {
     @Test
     void rejectionTellsWhy() throws IOException, InterruptedException {
         assertRejected("artifact=my.app", "Artifact ID can only contain letters, numbers, underscores, and hyphens");
-        assertRejected("artifact=x;baseType=foo", "Invalid baseType 'foo': must match base|infra|payara|glassfish");
+        assertRejected("artifact=x;baseType=foo", "Invalid baseType 'foo': must match base|infra|payara|glassfish|quarkus");
         assertRejected("artifact=x;group=com%20acme", "Invalid group 'com acme'");
         assertRejected("artifact=x;package=com.acme.new", "Invalid package 'com.acme.new'");
     }

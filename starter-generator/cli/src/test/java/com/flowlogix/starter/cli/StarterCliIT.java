@@ -50,7 +50,9 @@ class StarterCliIT {
     private static Map<String, String> parameters(String request) {
         String path = request.contains("\"http") ? request.substring(request.indexOf("\"http") + 1,
                 request.indexOf('"', request.indexOf("\"http") + 1)) : request;
-        return Stream.of(path.substring(path.lastIndexOf('/') + 1).split(";")).filter(not(String::isEmpty))
+        // values are percent-encoded, so the first ';' starts the parameters
+        String matrix = path.contains(";") ? path.substring(path.indexOf(';') + 1) : "";
+        return Stream.of(matrix.split(";")).filter(not(String::isEmpty))
                 .map(parameter -> parameter.split("=", 2))
                 .collect(Collectors.toMap(parameter -> parameter[0],
                         parameter -> URLDecoder.decode(parameter[1], StandardCharsets.UTF_8)));
@@ -63,7 +65,6 @@ class StarterCliIT {
         var expected = new HashMap<String, String>();
         expected.put(StarterParameters.GROUP, group);
         expected.put(StarterParameters.ARTIFACT, artifact);
-        expected.put(StarterParameters.PACKAGE, StarterParameters.DEFAULT_PACKAGE);
         return expected;
     }
 
@@ -230,6 +231,15 @@ class StarterCliIT {
     }
 
     @Test
+    void leavesOmittedOptionsToTheServer(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--dry-run");
+
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(result.getOutput()).contains("curl -o \"" + StarterParameters.DEFAULT_ARTIFACT + ".zip\" \"");
+        assertThat(parameters(result.getOutput())).isEmpty();
+    }
+
+    @Test
     void packagingTypeAliases(QuarkusMainLauncher launcher, @TempDir Path dir) {
         LaunchResult result = launcher.launch("-o", dir.toString(), "--ear", "--dry-run");
         assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
@@ -257,7 +267,7 @@ class StarterCliIT {
                 "https://example.com/custom", "--dry-run");
 
         assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        assertThat(result.getOutput()).contains("\"https://example.com/custom/api/generate/;");
+        assertThat(result.getOutput()).contains("\"https://example.com/custom/api/generate\"");
     }
 
     @Test

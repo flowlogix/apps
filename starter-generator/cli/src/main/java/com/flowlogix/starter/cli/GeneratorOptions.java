@@ -60,12 +60,14 @@ class GeneratorOptions {
 
     @Produces
     CommandLine commandLine(PicocliCommandLineFactory factory) {
-        add(GROUP, OptionSpec.builder("-g", "--" + GROUP).defaultValue(DEFAULT_GROUP).paramLabel("<id>")
-                .description("Maven groupId (default: ${DEFAULT-VALUE})"));
-        add(ARTIFACT, OptionSpec.builder("-a", "--" + ARTIFACT).defaultValue(DEFAULT_ARTIFACT).paramLabel("<id>")
-                .description("Maven artifactId and project directory name (default: ${DEFAULT-VALUE})"));
+        // defaults are only shown, so that an omitted option is left to the server, like the archetype properties
+        add(GROUP, OptionSpec.builder("-g", "--" + GROUP).paramLabel("<id>")
+                .description("Maven groupId (default: %s)".formatted(DEFAULT_GROUP)));
+        add(ARTIFACT, OptionSpec.builder("-a", "--" + ARTIFACT).paramLabel("<id>")
+                .description("Maven artifactId and project directory name (default: %s)"
+                        .formatted(DEFAULT_ARTIFACT)));
         add(PACKAGE, OptionSpec.builder("-p", "--" + PACKAGE).paramLabel("<package>")
-                .description("Base Java package (default: ${DEFAULT-VALUE})").defaultValue(DEFAULT_PACKAGE));
+                .description("Base Java package (default: %s)".formatted(DEFAULT_PACKAGE)));
         add(ARCHETYPE_VERSION, OptionSpec.builder("--" + ARCHETYPE_VERSION).paramLabel("<version>")
                 .description("Version of the starter archetype"));
         ArchetypeMetadata.properties().forEach(property -> options.put(property.key(),
@@ -114,6 +116,13 @@ class GeneratorOptions {
 
     String value(String parameter) {
         return Objects.toString(options.get(parameter).getValue(), null);
+    }
+
+    /**
+     * The artifact the generator names the project after, including when it is left to the server.
+     */
+    String artifact() {
+        return Objects.requireNonNullElse(value(ARTIFACT), DEFAULT_ARTIFACT);
     }
 
     static String optionName(String property) {

@@ -32,7 +32,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 
 /**
  * CLI front end for JStarter, the Java or Jakarta EE Starter by Flow Logix.
@@ -84,7 +83,7 @@ public class StarterCli implements Callable<Integer> {
     @Override
     @SneakyThrows
     public Integer call() {
-        Path projectDir = outputDir.resolve(options.value(ARTIFACT)).toAbsolutePath().normalize();
+        Path projectDir = outputDir.resolve(options.artifact()).toAbsolutePath().normalize();
         if (Files.exists(projectDir)) {
             spec.commandLine().getErr().printf("Directory '%s' already exists. "
                     + "Choose another --artifact or --output-dir.%n", projectDir);
@@ -95,7 +94,7 @@ public class StarterCli implements Callable<Integer> {
         URI downloadUrl = URI.create(DownloadRequest.endpoint(generatorUrl.toString()));
         if (dryRun) {
             spec.commandLine().getOut().println(DownloadRequest.curlCommand(
-                    DownloadRequest.url(downloadUrl.toString(), parameters), options.value(ARTIFACT)));
+                    DownloadRequest.url(downloadUrl.toString(), parameters), options.artifact()));
             return 0;
         }
 

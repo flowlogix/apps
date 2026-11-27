@@ -35,7 +35,7 @@ import java.util.concurrent.Callable;
 import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 
 /**
- * CLI front end for JStarter, the Jakarta EE Starter by Flow Logix.
+ * CLI front end for JStarter, the Java or Jakarta EE Starter by Flow Logix.
  *
  * <p>It hands the options to the start.flowlogix.com generator, so the same options produce the same project
  * as the web page does, and the generator alone decides which values are valid.
@@ -43,7 +43,7 @@ import static com.flowlogix.starter.common.StarterParameters.ARTIFACT;
 @TopCommand
 @Command(name = "jstarter", mixinStandardHelpOptions = true, versionProvider = StarterCli.BuildVersion.class,
         usageHelpAutoWidth = true,
-        description = "Creates a Jakarta EE project with JStarter, the Jakarta EE Starter by Flow Logix.",
+        description = "Creates a Java or Jakarta EE project with JStarter, the Starter by Flow Logix.",
         exitCodeListHeading = "%nExit codes:%n",
         exitCodeList = {"0:Project created (or request printed, with --dry-run)",
                 "1:Generation failed: target directory exists, or the generator failed or could not be reached",

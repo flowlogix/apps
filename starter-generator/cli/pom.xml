@@ -14,6 +14,9 @@
     <name>JStarter - Java or Jakarta EE Starter by Flow Logix</name>
 
     <properties>
+        <!-- Quarkus tests load the application with Quarkus's own class loader, which clashes
+        with the test JVM loading the same classes as modules -->
+        <failsafe.useModulePath>false</failsafe.useModulePath>
         <quarkus.native.additional-build-args>-Os</quarkus.native.additional-build-args>
     </properties>
 

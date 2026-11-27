@@ -6,7 +6,7 @@ module HopeNYC {
     requires jakarta.faces;
     requires jakarta.servlet;
     requires java.compiler;
-    requires lombok;
+    requires static lombok;
     requires org.omnifaces;
     requires org.primefaces;
     requires microprofile.config.api;

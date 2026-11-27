@@ -212,6 +212,14 @@ class StarterCliIT {
     }
 
     @Test
+    void printsTheBuildVersion(QuarkusMainLauncher launcher) {
+        LaunchResult result = launcher.launch("--version");
+
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(result.getOutput()).matches("jstarter \\S+").doesNotContain("${");
+    }
+
+    @Test
     void printsTheRequestAsACurlCommand(QuarkusMainLauncher launcher, @TempDir Path dir) {
         LaunchResult result = launcher.launch("-g", "com.acme", "-a", "app", "-o", dir.toString(), "--dry-run");
 

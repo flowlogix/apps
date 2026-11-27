@@ -101,7 +101,7 @@
                 <artifactId>flowlogix-quarkus-bom</artifactId>
                 <scope>import</scope>
                 <type>pom</type>
-                <version>57</version>
+                <version>60</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

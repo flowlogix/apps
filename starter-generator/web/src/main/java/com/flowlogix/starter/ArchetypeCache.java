@@ -40,6 +40,8 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,6 +50,7 @@ import java.util.SequencedMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 
 import static com.flowlogix.starter.common.StarterParameters.PACKAGING_TYPE;
 
@@ -59,7 +62,10 @@ import static com.flowlogix.starter.common.StarterParameters.PACKAGING_TYPE;
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class ArchetypeCache {
     /** Projects generated at startup and kept warm, by cache key. */
-    private static final Map<String, List<Parameter>> PINNED = Map.ofEntries(pinned("war"), pinned("jar"));
+    private static final Map<String, List<Parameter>> PINNED = Map.ofEntries(
+            pinned(PACKAGING_TYPE, "war"),
+            pinned(PACKAGING_TYPE, "jar"),
+            pinned("baseType", "quarkus"));
     @Inject
     ArchetypeGenerator generator;
     @Inject
@@ -82,6 +88,8 @@ public class ArchetypeCache {
     private int cacheWarmupDelay;
     private final SequencedMap<String, CachedZip> entries = new LinkedHashMap<>();
     private final Map<String, CompletableFuture<CachedZip>> pending = new HashMap<>();
+    /// Refreshes expired warmed projects one at a time; a new run starts only after this one completes
+    private CompletableFuture<?> refreshing = CompletableFuture.completedFuture(null);
     private boolean closed;
 
     @SuppressWarnings("unused")
@@ -151,21 +159,33 @@ public class ArchetypeCache {
     }
 
     /**
-     * Generates the default WAR and JAR projects ahead of requests.
+     * Generates the default WAR, JAR and Quarkus projects ahead of requests, one after another,
+     * without waiting for them.
      */
     public void warmDefaults() {
-        PINNED.values().forEach(parameters -> warm(parameters, null));
+        inSequence(PINNED.values(), parameters -> warm(parameters, null));
     }
 
-    private static Map.Entry<String, List<Parameter>> pinned(String packaging) {
-        var parameters = List.of(new Parameter(PACKAGING_TYPE, packaging));
+    /// Runs `step` for each item once the previous one has finished, successfully or not, without waiting.
+    /// The result completes after the last one.
+    private static <T> CompletableFuture<?> inSequence(Collection<T> items, Function<T, CompletableFuture<?>> step) {
+        CompletableFuture<?> previous = CompletableFuture.completedFuture(null);
+        for (var item : items) {
+            previous = previous.handle((_, _) -> null).thenCompose(_ -> step.apply(item));
+        }
+        return previous;
+    }
+
+    private static Map.Entry<String, List<Parameter>> pinned(String key, String value) {
+        var parameters = List.of(new Parameter(key, value));
         return Map.entry(ArchetypeGenerator.cacheKey(parameters), parameters);
     }
 
-    public void warm(List<Parameter> parameters, WarmupBudget budget) {
+    public CompletableFuture<?> warm(List<Parameter> parameters, WarmupBudget budget) {
         if (warmupEnabled) {
-            getOrGenerateZip(parameters, () -> budget == null || budget.acquire(clock.instant()));
+            return getOrGenerateZip(parameters, () -> budget == null || budget.acquire(clock.instant()));
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     public Result download(List<Parameter> parameters) {
@@ -295,20 +315,24 @@ public class ArchetypeCache {
     @Synchronized
     void evictExpired() {
         Instant cutoff = clock.instant().minus(Duration.ofHours(hours));
+        List<String> expiredPinned = new ArrayList<>();
         var iterator = entries.entrySet().iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();
             CachedZip zip = entry.getValue();
             if (!zip.created.isAfter(cutoff)) {
                 if (PINNED.containsKey(entry.getKey())) {
-                    if (warmupEnabled && !closed) {
-                        scheduleGeneration(entry.getKey(), PINNED.get(entry.getKey()), () -> true);
-                    }
+                    expiredPinned.add(entry.getKey());
                 } else {
                     zip.delete();
                     iterator.remove();
                 }
             }
+        }
+        if (warmupEnabled && !closed && refreshing.isDone() && !expiredPinned.isEmpty()) {
+            // each step runs under this lock: generations complete only in synchronized methods
+            refreshing = inSequence(expiredPinned, key -> closed ? CompletableFuture.completedFuture(null)
+                    : scheduleGeneration(key, PINNED.get(key), () -> true));
         }
     }
 

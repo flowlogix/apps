@@ -232,6 +232,17 @@ class StarterCliIT {
     }
 
     @Test
+    void baseTypeAliases(QuarkusMainLauncher launcher, @TempDir Path dir) {
+        LaunchResult result = launcher.launch("-o", dir.toString(), "--quarkus", "--dry-run");
+        assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
+        assertThat(parameters(result.getOutput())).containsEntry("baseType", "quarkus");
+
+        result = launcher.launch("-o", dir.toString(), "--infra", "--baseType", "base", "--dry-run");
+        assertThat(result.exitCode()).isEqualTo(2);
+        assertThat(result.getErrorOutput()).contains("--base, --infra, --quarkus and --baseType are mutually exclusive");
+    }
+
+    @Test
     void appendsDownloadPathToCustomBaseUrl(QuarkusMainLauncher launcher, @TempDir Path dir) {
         LaunchResult result = launcher.launch("-o", dir.toString(), "--generator-url",
                 "https://example.com/custom", "--dry-run");

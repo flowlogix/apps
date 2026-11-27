@@ -51,9 +51,12 @@ import static com.flowlogix.starter.common.StarterParameters.PACKAGING_TYPE;
 class GeneratorOptions {
     // --version prints the version of the command line itself
     private static final Map<String, String> RENAMED = Map.of("version", "projectVersion");
-    private static final List<String> PACKAGING_ALIASES = List.of("jar", "war", "ear");
+    /// Flags that stand for a value of a parameter, such as `--war` for `--packagingType=war`
+    private static final Map<String, List<String>> ALIASES = Map.of(
+            PACKAGING_TYPE, List.of("jar", "war", "ear"),
+            "baseType", List.of("base", "infra", "quarkus"));
     private final Map<String, OptionSpec> options = new LinkedHashMap<>();
-    private final Map<String, OptionSpec> packagingAliases = new LinkedHashMap<>();
+    private final Map<String, Map<String, OptionSpec>> aliases = new LinkedHashMap<>();
 
     @Produces
     CommandLine commandLine(PicocliCommandLineFactory factory) {
@@ -71,12 +74,12 @@ class GeneratorOptions {
         CommandLine commandLine = factory.create();
         commandLine.setOptionsCaseInsensitive(true);
         options.values().forEach(commandLine.getCommandSpec()::addOption);
-        PACKAGING_ALIASES.forEach(type -> {
-            var alias = OptionSpec.builder("--" + type).type(boolean.class)
-                    .description("Same as --" + PACKAGING_TYPE + "=" + type).build();
-            packagingAliases.put(type, alias);
+        ALIASES.forEach((parameter, values) -> values.forEach(value -> {
+            var alias = OptionSpec.builder("--" + value).type(boolean.class)
+                    .description("Same as --" + parameter + "=" + value).build();
+            aliases.computeIfAbsent(parameter, _ -> new LinkedHashMap<>()).put(value, alias);
             commandLine.getCommandSpec().addOption(alias);
-        });
+        }));
         var execution = commandLine.getExecutionStrategy();
         // options the server added since this build are not known yet, see withServerParameters
         commandLine.setUnmatchedArgumentsAllowed(true);
@@ -96,13 +99,16 @@ class GeneratorOptions {
                 parameters.put(name, value);
             }
         });
-        var requested = packagingAliases.entrySet().stream()
-                .filter(alias -> Boolean.TRUE.equals(alias.getValue().getValue())).map(Map.Entry::getKey).toList();
-        if (requested.size() > 1 || !requested.isEmpty() && parameters.containsKey(PACKAGING_TYPE)) {
-            throw new CommandLine.ParameterException(packagingAliases.values().iterator().next().command().commandLine(),
-                    "--jar, --war, --ear and --" + PACKAGING_TYPE + " are mutually exclusive");
-        }
-        requested.forEach(type -> parameters.put(PACKAGING_TYPE, type));
+        aliases.forEach((parameter, flags) -> {
+            var requested = flags.entrySet().stream()
+                    .filter(alias -> Boolean.TRUE.equals(alias.getValue().getValue())).map(Map.Entry::getKey).toList();
+            if (requested.size() > 1 || !requested.isEmpty() && parameters.containsKey(parameter)) {
+                throw new CommandLine.ParameterException(flags.values().iterator().next().command().commandLine(),
+                        flags.keySet().stream().map(name -> "--" + name).collect(Collectors.joining(", "))
+                                + " and --" + parameter + " are mutually exclusive");
+            }
+            requested.forEach(value -> parameters.put(parameter, value));
+        });
         return parameters;
     }
 

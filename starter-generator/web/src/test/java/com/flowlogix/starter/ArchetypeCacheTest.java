@@ -35,6 +35,7 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletionException;
+import java.util.stream.IntStream;
 import java.util.zip.ZipInputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -83,20 +84,25 @@ class ArchetypeCacheTest {
         var lifecycle = new ArchetypeCacheLifecycle();
         lifecycle.cache = cache;
         lifecycle.warmDefaults();
-        assertThat(jobs).hasSize(2);
+        assertThat(jobs).hasSize(1);
         var download = cache.requestDownload(List.of());
         var jarDownload = cache.requestDownload(List.of(new Parameter(PACKAGING_TYPE, "jar")));
-        assertThat(jobs).hasSize(2);
+        var quarkusDownload = cache.requestDownload(List.of(new Parameter("baseType", "quarkus")));
+        assertThat(jobs).hasSize(3);
         assertThat(download).isNotDone();
         assertThat(jarDownload).isNotDone();
-        jobs.remove().run();
-        jobs.remove().run();
+        assertThat(quarkusDownload).isNotDone();
+        while (!jobs.isEmpty()) {
+            jobs.remove().run();
+        }
         try (var result = assertInstanceOf(Download.class, download.join());
-             var jarResult = assertInstanceOf(Download.class, jarDownload.join())) {
+             var jarResult = assertInstanceOf(Download.class, jarDownload.join());
+             var quarkusResult = assertInstanceOf(Download.class, quarkusDownload.join())) {
             assertThat(result.input().readAllBytes()).isNotEmpty();
             assertThat(jarResult.input().readAllBytes()).isNotEmpty();
+            assertThat(quarkusResult.input().readAllBytes()).isNotEmpty();
         }
-        verify(cache.generator, times(2)).generateArchetype(any());
+        verify(cache.generator, times(3)).generateArchetype(any());
     }
 
     @Test
@@ -268,6 +274,36 @@ class ArchetypeCacheTest {
         while (!jobs.isEmpty()) {
             jobs.remove().run();
         }
+    }
+
+    @Test
+    void startupWarmupGeneratesOneAtATime() {
+        cache.warmDefaults();
+        IntStream.rangeClosed(1, 3).forEach(generation -> {
+            assertThat(jobs).hasSize(1);
+            jobs.remove().run();
+            verify(cache.generator, times(generation)).generateArchetype(any());
+        });
+        assertThat(jobs).isEmpty();
+    }
+
+    @Test
+    void expiredWarmupRefreshesOneAtATime() {
+        cache.maxEntries = 3;
+        cache.warmDefaults();
+        while (!jobs.isEmpty()) {
+            jobs.remove().run();
+        }
+        when(clock.instant()).thenReturn(Instant.EPOCH.plus(Duration.ofHours(CACHE_HOURS)));
+        cache.evictExpired();
+        IntStream.rangeClosed(1, 3).forEach(refresh -> {
+            assertThat(jobs).hasSize(1);
+            cache.evictExpired();
+            assertThat(jobs).hasSize(1);
+            jobs.remove().run();
+            verify(cache.generator, times(3 + refresh)).generateArchetype(any());
+        });
+        assertThat(jobs).isEmpty();
     }
 
     @Test

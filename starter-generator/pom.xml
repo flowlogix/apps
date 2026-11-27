@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.flowlogix</groupId>
         <artifactId>quarkus-pom</artifactId>
-        <version>150</version>
+        <version>151</version>
         <relativePath/>
     </parent>
 

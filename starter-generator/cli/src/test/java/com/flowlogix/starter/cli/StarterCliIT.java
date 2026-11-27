@@ -111,7 +111,8 @@ class StarterCliIT {
                 GeneratorStub.archive("app/pom.xml"))) {
             LaunchResult result = generate(launcher, generator.url(), dir, "--json");
 
-            Path project = dir.resolve("app");
+            // JSON escapes the backslashes of Windows paths
+            String project = dir.resolve("app").toString().replace("\\", "\\\\");
             assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
             assertThat(result.getOutput().strip()).isEqualTo(
                     "{\"nextStep\":\"cd %1$s && ./mvnw verify\",\"projectDir\":\"%1$s\"}".formatted(project));
@@ -216,7 +217,7 @@ class StarterCliIT {
         LaunchResult result = launcher.launch("--version");
 
         assertThat(result.exitCode()).as(result.getErrorOutput()).isZero();
-        assertThat(result.getOutput()).matches("jstarter \\S+").doesNotContain("${");
+        assertThat(result.getOutput().strip()).matches("jstarter \\S+").doesNotContain("${");
     }
 
     @Test
